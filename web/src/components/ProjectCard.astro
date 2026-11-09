@@ -1,0 +1,4 @@
+---
+import Icon from './Icon.astro';const {p}=Astro.props;
+---
+<a href={'/proyectos/'+p.slug} class="project-card"><img src={'/media/'+p.cover+'/960'} alt={p.name} loading="lazy" width="960" height="650"/><div><span class="eyebrow">{p.city} · {p.sector}</span><h3>{p.name}</h3><span>Descubre sus materiales <Icon size={20}/></span></div></a>

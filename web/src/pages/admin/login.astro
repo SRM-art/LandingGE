@@ -1,0 +1,7 @@
+---
+import AccessLayout from '../../layouts/AccessLayout.astro';import PasswordField from '../../components/PasswordField.astro';import {ownerExists} from '../../server/auth';
+if(Astro.locals.isAdmin)return Astro.redirect('/admin');
+if(!ownerExists())return Astro.redirect('/admin/configurar');
+const notice=Astro.url.searchParams.get('notice');
+---
+<AccessLayout title="Iniciar sesión"><h1>Bienvenido de nuevo.</h1><p>Gestiona tus productos, proyectos y el contenido de tu página.</p>{notice&&<div class="notice">{notice==='closed'?'Tus sesiones se cerraron.':notice==='email'?'Correo actualizado. Inicia sesión con tu nuevo correo.':'Contraseña guardada. Inicia sesión para continuar.'}</div>}<form data-auth-form="login" class="account-form"><label>Correo<input type="email" name="email" autocomplete="username" required maxlength="254"/></label><PasswordField/><button type="submit" class="button primary full">Iniciar sesión →</button><p data-auth-status class="form-status" role="status" aria-live="polite"></p></form><a class="text-link" href="/admin/recuperar">Olvidé mi contraseña</a></AccessLayout>

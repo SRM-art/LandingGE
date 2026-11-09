@@ -1,0 +1,4 @@
+---
+import AccessLayout from '../../layouts/AccessLayout.astro';const token=Astro.url.searchParams.get('token')||'';
+---
+<AccessLayout title="Confirmar correo"><h1>Confirma tu nuevo correo.</h1><p>Al confirmar, usarás el nuevo correo para ingresar y se cerrarán tus sesiones anteriores.</p><form data-auth-form="confirm-email" class="account-form"><input type="hidden" name="token" value={token}/><button type="submit" class="button primary full">Confirmar cambio →</button><p data-auth-status class="form-status" role="status"></p></form></AccessLayout>

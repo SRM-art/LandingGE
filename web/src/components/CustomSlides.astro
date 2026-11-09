@@ -1,0 +1,14 @@
+---
+import {all} from '../server/db';
+const slides=all('SELECT * FROM slide WHERE id>3 ORDER BY deleted_at IS NOT NULL,position,id');
+---
+<section class="panel" id="diapositivas-adicionales">
+ <div class="custom-slide-heading"><div><h2>Diapositivas adicionales</h2><p class="hint">Agrega una imagen y los textos. La fuente, posición, tamaños y botón hacia el catálogo se aplican automáticamente.</p></div><a class="button primary" href="/admin/slides/nueva">+ Agregar diapositiva</a></div>
+ {slides.length?<div class="custom-slide-list">{slides.map(s=><article class="custom-slide-row">
+  <img src={'/media/'+s.media_id+'/480'} alt="" loading="lazy"/>
+  <div><strong>{s.title}</strong><p>{s.subtitle}</p><span class:list={['badge',s.deleted_at?'hidden':s.active?'published':'draft']}>{s.deleted_at?'Oculta':s.active?'Visible':'Borrador'}</span></div>
+  <div class="row-actions"><a href={'/admin/slides/'+s.id}>Editar</a><button type="button" data-slide-state={s.deleted_at?'restore':'hide'} data-id={s.id} data-revision={s.revision}>{s.deleted_at?'Restaurar':'Quitar del carrusel'}</button></div>
+ </article>)}</div>:<p class="empty-admin">Las tres diapositivas base ya están incluidas. Las que agregues aparecerán aquí y al final del carrusel.</p>}
+ <p class="hint">Quitar conserva los datos y la imagen. Al restaurar, la diapositiva vuelve como borrador.</p>
+</section>
+<style>.custom-slide-heading{display:flex;align-items:start;justify-content:space-between;gap:24px}.custom-slide-heading h2{margin-bottom:12px}.custom-slide-heading .button{white-space:nowrap;font-size:13px}.custom-slide-list{display:grid;gap:0}.custom-slide-row{display:flex;gap:18px;align-items:center;border-top:1px solid var(--line);padding:20px 0}.custom-slide-row>img{width:120px;aspect-ratio:1.7;object-fit:cover;border-radius:4px}.custom-slide-row>div:nth-child(2){flex:1;min-width:0}.custom-slide-row strong{font-size:15px;font-weight:500}.custom-slide-row p{font-size:11px;margin:5px 0}.custom-slide-row .row-actions{flex-wrap:wrap}@media(max-width:600px){.custom-slide-heading{flex-direction:column}.custom-slide-row{flex-wrap:wrap}.custom-slide-row>img{width:85px}.custom-slide-row .row-actions{width:100%}}</style>

@@ -1,0 +1,8 @@
+---
+import '../styles/site.css';import '../styles/admin.css';const {title='Administración'}=Astro.props;const path=Astro.url.pathname;
+const user=Astro.locals.user;
+import '../styles/accounts.css';
+const navigation=[['/admin','Resumen'],['/admin/productos','Productos'],['/admin/proyectos','Proyectos'],['/admin/contenidos','Inicio y contacto'],['/admin/vista-previa','Revisar diseño'],...(user?.role==='owner'?[['/admin/usuarios','Usuarios y sesiones']]:[]),['/admin/mi-cuenta','Mi cuenta']];
+---
+<!doctype html><html lang="es-CO"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="robots" content="noindex,nofollow"/><title>{title} · Administración</title><link rel="icon" href="/brand/symbol.webp"/></head><body class="admin-body"><aside class="admin-sidebar"><a href="/admin" class="admin-logo"><img src="/brand/logo-white.webp" alt="Gestión Esencial"/></a><span class="admin-label">ADMINISTRACIÓN</span><nav>{navigation.map(([href,label])=><a href={href} class:list={{selected:href==='/admin'?path===href:path.startsWith(href)}}>{label}</a>)}</nav><div class="sidebar-bottom"><a href="/" target="_blank">Abrir sitio ↗</a><a href="/admin/api/export" download>Exportar información</a><button data-logout>Cerrar sesión</button></div></aside><div class="admin-main"><header class="admin-top"><span class="account-email">{user?.email}</span><span class="local-badge">Local · {user?.role==='owner'?'Propietario':'Administrador'}</span></header><main class="admin-content"><slot/></main></div><div id="toast" class="toast" role="status" hidden></div><script src="../scripts/admin.ts"></script></body></html>
+

@@ -1,0 +1,17 @@
+---
+import '../styles/site.css';
+import Icon from '../components/Icon.astro';
+import WhatsApp from '../components/WhatsApp.astro';
+import {settings} from '../server/db';
+const {title='Pisos, superficies y espacios con carácter',description='Descubre los pisos, materiales y proyectos de Gestión Esencial.'}=Astro.props;
+const s=settings();const path=Astro.url.pathname;
+---
+<!doctype html><html lang="es-CO"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>{title} · Gestión Esencial</title><meta name="description" content={description}/><meta name="robots" content="noindex,nofollow"/><link rel="icon" href="/brand/symbol.webp"/></head><body data-whatsapp-number={s.whatsapp}>
+<div class="preview-bar"><span>Vista local · Imágenes, proyectos y precios de referencia</span><a href="/admin">Administrar sitio <span aria-hidden="true">↗</span></a></div>
+<header class="site-header"><a class="brand" href="/" aria-label="Gestión Esencial, inicio"><img src="/brand/logo.webp" alt="Gestión Esencial" width="962" height="451"/></a><button class="menu-toggle" aria-label="Abrir menú" aria-expanded="false" data-menu><Icon name="menu"/></button><nav class="main-nav" aria-label="Principal">{[['/','Inicio'],['/catalogo','Catálogo'],['/proyectos','Proyectos'],['/nosotros','Nosotros'],['/#contacto','Contáctanos']].map(([href,label])=><a class:list={{active:href==='/'?path==='/':path.startsWith(href)}} href={href}>{label}</a>)}</nav><form action="/catalogo" class="header-search"><input name="q" placeholder="¿Qué estás buscando?" aria-label="Buscar productos"/><button aria-label="Buscar"><Icon name="search" size={19}/></button></form></header>
+<main id="contenido"><slot/></main>
+<section id="contacto" class="contact-band"><div><p class="eyebrow">HAGAMOS REALIDAD TU IDEA</p><h2>Tu próximo espacio<br/><em>empieza aquí.</em></h2></div><div><p>Encuentra el material adecuado para tu proyecto.<br/>Nuestro equipo te acompaña en cada detalle.</p><WhatsApp label="Conversemos por WhatsApp"/></div></section>
+<footer class="site-footer"><div class="footer-brand"><img src="/brand/logo-white.webp" alt="Gestión Esencial" width="962" height="451"/><p>El valor está en los detalles.</p></div><div><h3>Explora</h3><a href="/catalogo">Nuestros productos</a><a href="/proyectos">Proyectos</a><a href="/nosotros">Nosotros</a></div><div><h3>Estamos para ayudarte</h3>{s.phone&&<p>{s.phone}</p>}{s.email&&<a href={'mailto:'+s.email}>{s.email}</a>}{s.address&&<p>{s.address}</p>}{s.hours&&<p>{s.hours}</p>}{!s.phone&&!s.email&&<p>Datos de contacto por configurar.</p>}</div><div class="footer-bottom"><span>© {new Date().getFullYear()} Gestión Esencial</span><span>Catálogo informativo · Venta de cajas y unidades completas</span></div></footer><WhatsApp floating/>
+<dialog id="whatsapp-dialog"><button class="dialog-close" data-close aria-label="Cerrar"><Icon name="close"/></button><p class="eyebrow">VISTA PREVIA LOCAL</p><h2>Tu consulta está lista.</h2><p>Configura el número de WhatsApp en el administrador para abrir la conversación. Así se enviará el mensaje:</p><blockquote id="whatsapp-message"></blockquote><button class="button primary" data-copy>Copiar mensaje</button><p class="status" id="copy-status" aria-live="polite"></p></dialog>
+<script src="../scripts/site.ts"></script></body></html>
+

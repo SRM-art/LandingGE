@@ -1,0 +1,22 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import ImageEditor from '../../../components/ImageEditor.astro';
+import CarouselTextField from '../../../components/CarouselTextField.astro';
+import {one} from '../../../server/db';
+const isNew=Astro.params.id==='nueva';
+const p=isNew?null:one('SELECT * FROM slide WHERE id=? AND id>3',Number(Astro.params.id)||0);
+if(!isNew&&!p)return Astro.redirect('/admin/contenidos#diapositivas-adicionales');
+---
+<AdminLayout title={p?'Editar diapositiva':'Agregar diapositiva'}>
+ <div class="admin-heading"><div><a class="back-link" href="/admin/contenidos#diapositivas-adicionales">← Volver a Inicio y contacto</a><h1>{p?'Editar':'Agregar'} diapositiva</h1><p>Tu imagen y tus textos, con el formato de Gestión Esencial.</p></div></div>
+ {p?.deleted_at&&<div class="notice">Esta diapositiva está oculta. Puedes editarla; restáurala antes de volver a mostrarla.</div>}
+ <form data-custom-slide-form data-id={p?.id||''} data-revision={p?.revision||''}>
+  <div class="editor-grid"><div><section class="panel"><h2>Textos de la diapositiva</h2>
+   <CarouselTextField field="subtitle" name="subtitle" value={p?.subtitle||''} placeholder="Ej. NUEVA COLECCIÓN"/>
+   <CarouselTextField field="title" name="title" value={p?.title||''} placeholder="Una nueva forma de habitar tus espacios."/>
+   <CarouselTextField field="description" name="description" value={p?.description||''}/>
+   <p class="hint">Usa textos breves para conservar la composición en móvil y escritorio.</p>
+  </section><section class="panel"><h2>Imagen de fondo</h2><ImageEditor images={p?[{id:p.media_id}]:[]} field="custom_slide_image" single/><p class="hint">Para este formato, elige una fotografía horizontal y deja espacio a la izquierda para los textos.</p></section></div>
+  <aside class="editor-aside"><section class="panel"><h2>Publicación</h2><label class="check-label"><input type="checkbox" name="active" checked={p?!p.deleted_at&&!!p.active:true} disabled={!!p?.deleted_at}/>Mostrar en el carrusel</label><p class="hint">Las diapositivas nuevas aparecen después de las tres base.</p><div class="price-preview">Botón automático: <strong>Explorar el catálogo →</strong></div><p class="hint">La tipografía, la ubicación y el tamaño se mantienen según el diseño.</p><button class="button primary full" data-save>Guardar diapositiva</button><p class="form-status" data-form-status role="status"></p></section></aside></div>
+ </form>
+</AdminLayout>

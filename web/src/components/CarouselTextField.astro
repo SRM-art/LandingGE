@@ -1,0 +1,18 @@
+---
+import {carouselLimits,carouselLabels} from '../domain/carousel';
+interface Props {
+ field:keyof typeof carouselLimits;
+ name:string;
+ value?:string;
+ placeholder?:string;
+}
+const {field,name,value='',placeholder}=Astro.props;
+const limit=carouselLimits[field];
+const minimum=field==='title'?3:field==='button_text'?2:0;
+const counterId=name+'-counter';
+---
+<label>{carouselLabels[field]}
+ {field==='description'?<textarea name={name} maxlength={limit} rows="4" data-character-limit aria-describedby={counterId}>{value}</textarea>:<input name={name} value={value} maxlength={limit} minlength={minimum||undefined} required={minimum>0} placeholder={placeholder} data-character-limit aria-describedby={counterId}/>}
+ <small class="character-counter" id={counterId} data-character-counter>{value.length} / {limit} caracteres</small>
+</label>
+<style>.character-counter{display:block;text-align:right;margin-top:5px;font-size:11px;font-weight:400;color:var(--muted)}.character-counter[data-over-limit=true]{color:#af3645}</style>

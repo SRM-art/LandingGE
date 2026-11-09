@@ -1,0 +1,5 @@
+---
+import {money} from '../domain/pricing';import Icon from './Icon.astro';
+const {p}=Astro.props;const cover=p.cover||p.images?.[0]?.id;
+---
+<a class="product-card" href={'/catalogo/'+p.slug}><div class="product-photo">{cover?<img src={'/media/'+cover+'/480'} alt={p.name} loading="lazy" width="480" height="480"/>:<div class="photo-placeholder">Imagen por agregar</div>}<span class="card-category">{p.category}</span><span class="card-arrow"><Icon/></span></div><div class="product-caption"><span class="sku">{p.sku}</span><h3>{p.name}</h3><p>{p.price_cents?money(p.price_cents):'Consultar precio'} <small>/ {p.unit_name}{p.presentation_code==='SACO'?' (saco)':p.presentation_code==='BOLSA'?' (bolsa)':''}</small></p></div></a>

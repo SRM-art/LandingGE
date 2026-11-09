@@ -1,0 +1,4 @@
+---
+import AccessLayout from '../../layouts/AccessLayout.astro';
+---
+<AccessLayout title="Recuperar acceso"><h1>Recupera tu acceso.</h1><p>Te enviaremos un enlace para establecer una nueva contraseña. Tendrá una vigencia de 20 minutos.</p><form data-auth-form="recover" class="account-form"><label>Correo de tu cuenta<input type="email" name="email" autocomplete="username" required maxlength="254"/></label><button type="submit" class="button primary full">Solicitar enlace →</button><p data-auth-status class="form-status" role="status" aria-live="polite"></p></form><a class="text-link" href="/admin/login">Volver al inicio de sesión</a></AccessLayout>

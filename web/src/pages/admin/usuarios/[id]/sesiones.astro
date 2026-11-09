@@ -1,0 +1,5 @@
+---
+import AdminLayout from '../../../../layouts/AdminLayout.astro';import SessionList from '../../../../components/SessionList.astro';import Reauthenticate from '../../../../components/Reauthenticate.astro';import {one} from '../../../../server/db';
+const user=one('SELECT id,email FROM auth_user WHERE id=?',Astro.params.id);if(!user)return new Response('Cuenta no encontrada.',{status:404});
+---
+<AdminLayout title="Sesiones"><a class="back-link" href="/admin/usuarios">← Volver a usuarios</a><div class="admin-heading"><div><p class="eyebrow">CONTROL DE ACCESO</p><h1>Sesiones de la cuenta.</h1><p>{user.email}</p></div></div>{user.id!==Astro.locals.user!.id&&<Reauthenticate/>}<SessionList userId={user.id}/><script src="../../../../scripts/accounts.ts"></script></AdminLayout>

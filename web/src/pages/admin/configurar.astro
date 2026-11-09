@@ -1,0 +1,5 @@
+---
+import AccessLayout from '../../layouts/AccessLayout.astro';import PasswordField from '../../components/PasswordField.astro';import {ownerExists} from '../../server/auth';
+if(ownerExists())return Astro.redirect('/admin/login');
+---
+<AccessLayout title="Configurar propietario"><h1>Tu administración empieza aquí.</h1><p>Crea la cuenta del propietario para revisar el panel. Esta configuración se realiza una sola vez en este equipo.</p><form data-auth-form="setup" class="account-form"><label>Correo del propietario<input type="email" name="email" autocomplete="username" maxlength="254" required/></label><PasswordField fresh/><PasswordField name="confirmation" label="Confirmar contraseña" fresh/><button type="submit" class="button primary full">Crear cuenta e ingresar →</button><p data-auth-status class="form-status" role="status"></p></form></AccessLayout>

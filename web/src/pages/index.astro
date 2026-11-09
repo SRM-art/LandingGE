@@ -1,0 +1,16 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';import Icon from '../components/Icon.astro';import ProductCard from '../components/ProductCard.astro';import ProjectCard from '../components/ProjectCard.astro';import {all,products,projects,settings} from '../server/db';
+const slides=all('SELECT * FROM slide WHERE active=1 AND deleted_at IS NULL ORDER BY position,id');const services=all('SELECT * FROM service ORDER BY position');const s=settings();
+---
+<SiteLayout>
+<section class="hero" data-carousel aria-label="Destacados">{slides.map((slide,i)=><article class="hero-slide" data-slide hidden={i!==0}><img class="hero-image" src={'/media/'+slide.media_id+'/1600'} alt="Interior de referencia con superficies y pisos" fetchpriority={i===0?'high':'auto'}/><div class="hero-shade"></div><div class="hero-copy"><p class="hero-kicker">{slide.subtitle}</p><h1>{slide.title}</h1><p>{slide.description}</p><a class="button light" href={slide.button_href}><span class="hero-button-label">{slide.button_text}</span><Icon/></a></div></article>)}{slides.length>1&&<div class="hero-controls"><div class="hero-dots" aria-hidden="true">{slides.map((_,i)=><span data-dot class:list={{active:i===0}}></span>)}</div><div class="hero-pagination"><span data-counter>01</span><span class="total">/ {String(slides.length).padStart(2,'0')}</span></div></div>}{!slides.length&&<div class="hero-copy"><h1>Materiales para transformar tus espacios.</h1><a class="button light" href="/catalogo">Explorar catálogo<Icon/></a></div>}</section>
+<div class="promise-strip"><span>Asesoría personalizada</span><span>Materiales para cada espacio</span><span>Instalación y acabados</span></div>
+<section class="section"><div class="section-heading"><div><p class="eyebrow">MATERIALES CON PERSONALIDAD</p><h2>La esencia de <em>tus espacios.</em></h2></div><a class="text-link" href="/catalogo">Ver todo el catálogo<Icon/></a></div><div class="product-grid home-products">{products().slice(0,4).map(p=><ProductCard p={p}/>)}</div></section>
+<section class="services section" id="servicios"><div class="section-heading"><div><p class="eyebrow">DE LA IDEA AL DETALLE</p><h2>Te acompañamos<br/><em>en cada paso.</em></h2></div><p class="section-intro">Un buen espacio comienza con una buena elección.<br/>Nos encargamos de que cada decisión cuente.</p></div><div class="service-grid">{services.map((s,i)=><article><span class="service-number">0{i+1}</span><h3>{s.title}</h3><p>{s.description}</p><a href="/#contacto" aria-label={'Consultar: '+s.title}><Icon/></a></article>)}</div></section>
+<section class="section"><div class="section-heading"><div><p class="eyebrow">INSPIRACIÓN QUE SE VIVE</p><h2>Materiales que se vuelven <em>espacios.</em></h2></div><a class="text-link" href="/proyectos">Explorar proyectos<Icon/></a></div><div class="project-grid">{projects().slice(0,2).map(p=><ProjectCard p={p}/>)}</div></section>
+<section class="about-preview"><div class="about-photo">{s.about_media_id&&<img src={'/media/'+s.about_media_id+'/960'} alt="Identidad de Gestión Esencial" loading="lazy"/>}</div><div class="about-copy"><p class="eyebrow">SOMOS GESTIÓN ESENCIAL</p><h2>{s.about_title}</h2><p>{s.about_text}</p><a class="text-link" href="/nosotros">Conócenos<Icon/></a></div></section>
+</SiteLayout>
+
+
+
+

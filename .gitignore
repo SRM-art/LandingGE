@@ -1,0 +1,21 @@
+# Repository scope: application, documentation and local launchers.
+/*
+!/.gitignore
+!/README.md
+!/[0-9][0-9]_*.md
+!/*.cmd
+!/web/
+
+# Secrets, local state and generated files at any depth.
+**/node_modules/
+**/.local/
+**/dist/
+**/.astro/
+**/.sites-runtime/
+**/test-results/
+**/.env
+**/.env.*
+**/*.sqlite*
+**/*.db
+**/*.log
+**/local-mailbox.json

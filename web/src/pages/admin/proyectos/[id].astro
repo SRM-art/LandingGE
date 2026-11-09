@@ -1,0 +1,4 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';import RecordEditor from '../../../components/RecordEditor.astro';import {project} from '../../../server/db';const isNew=Astro.params.id==='nuevo';const p=isNew?null:project(Astro.params.id!,true);if(!isNew&&!p)return Astro.redirect('/admin/proyectos');
+---
+<AdminLayout title={p?.name||'Agregar proyecto'}><RecordEditor kind="project" p={p}/></AdminLayout>

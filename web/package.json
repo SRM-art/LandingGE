@@ -1,0 +1,32 @@
+{
+  "name": "gestion-esencial-local",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "predev": "node scripts/prepare-local.mjs",
+    "prestart": "node scripts/prepare-local.mjs",
+    "dev": "astro dev --host 127.0.0.1 --port 4321",
+    "build": "astro build",
+    "check": "astro check",
+    "test": "node --test tests/*.test.ts",
+    "start": "node scripts/start-local.mjs",
+    "test:http": "node scripts/test-http.mjs",
+    "test:auth": "node scripts/test-auth-http.mjs",
+    "backup": "node scripts/backup.mjs"
+  },
+  "dependencies": {
+    "astro": "7.4.2",
+    "@astrojs/node": "11.1.9",
+    "sharp": "0.35.5",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.6",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,218 @@
+{
+  "generated": "2026-10-24",
+  "notice": "Fotografías y productos son material de referencia suministrado; solo uso demostrativo hasta verificar contenido real y derechos. La imagen hero se refleja horizontalmente para reproducir la orientación de la maqueta. Logo: encuadre transparente más margen; originales intactos.",
+  "font": {
+    "installedRegular": "C:/Windows/Fonts/GIL_____.TTF",
+    "cssFamily": "Gill Sans MT",
+    "redistributed": false,
+    "webLicense": "No documentada. Usar fuente instalada para localhost; confirmar antes de desplegar."
+  },
+  "assets": [
+    {
+      "file": "hero.webp",
+      "path": "web\\.local\\seed-assets\\hero.webp",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sourceExtraction": "extract-01.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "project-1.webp",
+      "path": "web\\.local\\seed-assets\\project-1.webp",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sourceExtraction": "extract-01.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "project-2.webp",
+      "path": "web\\.local\\seed-assets\\project-2.webp",
+      "dimensions": [
+        803,
+        803
+      ],
+      "sourceExtraction": "extract-13.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "project-3.webp",
+      "path": "web\\.local\\seed-assets\\project-3.webp",
+      "dimensions": [
+        1000,
+        999
+      ],
+      "sourceExtraction": "extract-14.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "project-4.webp",
+      "path": "web\\.local\\seed-assets\\project-4.webp",
+      "dimensions": [
+        1440,
+        810
+      ],
+      "sourceExtraction": "extract-15.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "about.webp",
+      "path": "web\\.local\\seed-assets\\about.webp",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sourceExtraction": "extract-12.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "product-1.webp",
+      "path": "web\\.local\\seed-assets\\product-1.webp",
+      "dimensions": [
+        1080,
+        1080
+      ],
+      "sourceExtraction": "extract-08.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "product-2.webp",
+      "path": "web\\.local\\seed-assets\\product-2.webp",
+      "dimensions": [
+        1080,
+        1080
+      ],
+      "sourceExtraction": "extract-06.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "product-3.webp",
+      "path": "web\\.local\\seed-assets\\product-3.webp",
+      "dimensions": [
+        1132,
+        1124
+      ],
+      "sourceExtraction": "extract-02.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "product-4.webp",
+      "path": "web\\.local\\seed-assets\\product-4.webp",
+      "dimensions": [
+        2200,
+        2200
+      ],
+      "sourceExtraction": "extract-05.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "product-5.webp",
+      "path": "web\\.local\\seed-assets\\product-5.webp",
+      "dimensions": [
+        1080,
+        1080
+      ],
+      "sourceExtraction": "extract-04.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "product-6.webp",
+      "path": "web\\.local\\seed-assets\\product-6.webp",
+      "dimensions": [
+        1080,
+        1080
+      ],
+      "sourceExtraction": "extract-03.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "product-7.webp",
+      "path": "web\\.local\\seed-assets\\product-7.webp",
+      "dimensions": [
+        1080,
+        1080
+      ],
+      "sourceExtraction": "extract-07.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "gallery-1.webp",
+      "path": "web\\.local\\seed-assets\\gallery-1.webp",
+      "dimensions": [
+        1080,
+        1080
+      ],
+      "sourceExtraction": "extract-09.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "gallery-2.webp",
+      "path": "web\\.local\\seed-assets\\gallery-2.webp",
+      "dimensions": [
+        1080,
+        764
+      ],
+      "sourceExtraction": "extract-10.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "gallery-3.webp",
+      "path": "web\\.local\\seed-assets\\gallery-3.webp",
+      "dimensions": [
+        447,
+        447
+      ],
+      "sourceExtraction": "extract-11.webp",
+      "role": "demonstration",
+      "notes": "Imagen de referencia extraída del material entregado; no acredita proyecto real."
+    },
+    {
+      "file": "logo.webp",
+      "path": "web\\public\\brand\\logo.webp",
+      "dimensions": [
+        962,
+        451
+      ],
+      "source": "Gestión Esencial\\gestion esencial logo original png.png",
+      "role": "brand"
+    },
+    {
+      "file": "symbol.webp",
+      "path": "web\\public\\brand\\symbol.webp",
+      "dimensions": [
+        366,
+        488
+      ],
+      "source": "Gestión Esencial\\gestion esencial logotipo 2.png",
+      "role": "brand"
+    },
+    {
+      "file": "logo-white.webp",
+      "path": "web\\public\\brand\\logo-white.webp",
+      "dimensions": [
+        962,
+        451
+      ],
+      "source": "Gestión Esencial\\gestion esencial logo blanco png.png",
+      "role": "brand"
+    }
+  ]
+}

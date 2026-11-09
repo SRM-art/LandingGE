@@ -1,0 +1,4 @@
+---
+const {images=[],field='images',single=false}=Astro.props;
+---
+<div class="image-editor" data-image-editor data-field={field} data-single={single?'true':'false'} data-images={JSON.stringify(images.map((x:any)=>({id:x.id,alt:x.alt||''})))}><div class="image-list" data-image-list></div><label class="upload-button"><span>+ {single?'Elegir imagen':'Agregar imágenes'}</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple={!single} data-upload/></label><p class="hint">JPG, PNG o WebP · Máximo 10 MB por imagen. {single?'La imagen anterior se conservará en el histórico.':'La primera será la portada. Puedes cambiar el orden.'}</p><p class="status" data-upload-status aria-live="polite"></p></div>

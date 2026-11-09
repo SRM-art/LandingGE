@@ -1,0 +1,5 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';import {settings,all} from '../server/db';const s=settings();const services=all('SELECT * FROM service ORDER BY position');
+---
+<SiteLayout title="Nosotros"><section class="page-intro"><p class="eyebrow">SOMOS GESTIÓN ESENCIAL</p><h1>El valor está<br/><em>en los detalles.</em></h1></section><section class="about-preview"><div class="about-photo">{s.about_media_id&&<img src={'/media/'+s.about_media_id+'/960'} alt="Gestión Esencial"/>}</div><div class="about-copy"><h2>{s.about_title}</h2><p>{s.about_text}</p><a class="button primary" href="/#contacto">Hablemos de tu proyecto</a></div></section><section class="section"><div class="service-grid">{services.map((x,i)=><article><span class="service-number">0{i+1}</span><h3>{x.title}</h3><p>{x.description}</p></article>)}</div></section></SiteLayout>
+

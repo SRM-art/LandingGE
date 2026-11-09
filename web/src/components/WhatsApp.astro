@@ -1,0 +1,5 @@
+---
+import Icon from './Icon.astro';
+const {message='Hola, estoy interesado en sus productos y me interesa más información.',label='Hablemos de tu proyecto',floating=false}=Astro.props;
+---
+<button type="button" class:list={['button',floating?'whatsapp-float':'whatsapp-button']} data-whatsapp={message} aria-label={floating?'Contactar por WhatsApp':label}><Icon name="whatsapp" size={floating?30:22}/>{!floating&&label}</button>

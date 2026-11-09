@@ -1,0 +1,4 @@
+---
+import PasswordField from './PasswordField.astro';
+---
+<details class="panel reauth-panel"><summary>Verificar identidad</summary><p class="hint">Si han pasado más de 5 minutos desde tu acceso, confirma la contraseña antes de gestionar otras cuentas.</p><form data-auth-form="reauth" class="account-form"><PasswordField id="reauth-password"/><button class="button outline" type="submit">Verificar identidad</button><p data-auth-status class="form-status" role="status"></p></form></details>

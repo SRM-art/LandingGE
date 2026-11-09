@@ -1,0 +1,102 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import type {Identity} from '../src/server/auth.ts';
+process.env.GE_DATA_DIR=mkdtempSync(join(tmpdir(),'ge-accounts-'));
+process.env.LOCAL_PREVIEW='1';
+const auth=await import('../src/server/auth.ts');
+const {one,run,all}=await import('../src/server/db.ts');
+const {localMessages}=await import('../src/server/local-mail.ts');
+const ownerEmail='owner@example.test',adminEmail='admin@example.test';
+const pass='Una frase privada para pruebas 2026';
+const nextPass='Otra frase privada distinta para pruebas';
+const message=(to:string,purpose:string)=>localMessages().find(m=>m.to===to&&m.purpose===purpose)!;
+const denied=(f:()=>unknown,status:number)=>assert.throws(f,(e:any)=>e.status===status);
+
+test('cuentas, sesiones y recuperación en base aislada',async t=>{
+ let ownerToken='',owner:Identity,adminId='',adminToken='',admin:Identity;
+ await t.test('alta única, hashing y contraseñas válidas',async()=>{
+  await assert.rejects(()=>auth.setupOwner(ownerEmail,'breve',''),/15 a 128/);
+  ownerToken=await auth.setupOwner(ownerEmail,pass,'Chrome/1 Windows');owner=auth.identity(ownerToken)!;
+  assert.equal(owner.role,'owner');assert.equal(owner.email,ownerEmail);
+  await assert.rejects(()=>auth.setupOwner('another@example.test',pass,''),/ya está/);
+  const hash=one('SELECT password_hash FROM auth_credential WHERE user_id=?',owner.id).password_hash;
+  assert.ok(hash.startsWith('scrypt:'));assert.ok(!hash.includes(pass));
+  assert.notEqual(one('SELECT token_hash FROM auth_session WHERE id=?',owner.sessionId).token_hash,ownerToken);
+  await assert.rejects(()=>auth.login(ownerEmail,'incorrecta',''),/incorrectos/);
+ });
+ await t.test('invitación, enlace reemplazado, activación única y rol fijo',async()=>{
+  auth.invite(owner,adminEmail);const first=message(adminEmail,'invite').token!;
+  adminId=one('SELECT id FROM auth_user WHERE email=?',adminEmail).id;
+  auth.resendInvite(owner,adminId);const token=message(adminEmail,'invite').token!;
+  await assert.rejects(()=>auth.completePassword(first,'invite',pass),/enlace/);
+  await auth.completePassword(token,'invite',pass);
+  await assert.rejects(()=>auth.completePassword(token,'invite',pass),/enlace/);
+  adminToken=await auth.login(adminEmail,pass,'Firefox/1 Linux');admin=auth.identity(adminToken)!;
+  assert.equal(admin.role,'admin');denied(()=>auth.users(admin),403);
+  denied(()=>auth.invite(admin,'intruder@example.test'),403);
+  denied(()=>auth.sessions(admin,owner.id),403);denied(()=>auth.revokeSessions(admin,owner.id),403);
+  denied(()=>auth.changeUserState(owner,owner.id,false),403);
+  assert.equal(auth.users(owner).length,2);
+ });
+ await t.test('sesiones múltiples, cierre individual y cierre global',async()=>{
+  const other=await auth.login(adminEmail,pass,'Chrome/2 Android');
+  assert.equal(auth.sessions(owner,adminId).length,2);
+  auth.revokeSessions(owner,adminId,auth.identity(other)!.sessionId);
+  assert.equal(auth.identity(other),null);assert.ok(auth.identity(adminToken));
+  auth.revokeSessions(owner,adminId);assert.equal(auth.identity(adminToken),null);
+  assert.equal(auth.sessions(owner,adminId).length,0);
+  adminToken=await auth.login(adminEmail,pass,'Firefox/1 Linux');admin=auth.identity(adminToken)!;
+ });
+ await t.test('recuperación reemplaza enlaces, revoca sesiones y no revive cuentas desactivadas',async()=>{
+  run('DELETE FROM auth_limit');auth.requestReset(adminEmail);const old=message(adminEmail,'reset').token!;
+  auth.requestReset(adminEmail);const current=message(adminEmail,'reset').token!;
+  await assert.rejects(()=>auth.completePassword(old,'reset',nextPass),/enlace/);
+  await auth.completePassword(current,'reset',nextPass);assert.equal(auth.identity(adminToken),null);
+  await assert.rejects(()=>auth.login(adminEmail,pass,''),/incorrectos/);
+  adminToken=await auth.login(adminEmail,nextPass,'');admin=auth.identity(adminToken)!;
+  auth.requestReset(adminEmail);const pending=message(adminEmail,'reset').token!;
+  auth.changeUserState(owner,adminId,false);assert.equal(auth.identity(adminToken),null);
+  await assert.rejects(()=>auth.completePassword(pending,'reset',pass),/enlace/);
+  const before=localMessages().length;run('DELETE FROM auth_limit');auth.requestReset(adminEmail);auth.requestReset('missing@example.test');assert.equal(localMessages().length,before);
+  await assert.rejects(()=>auth.login(adminEmail,nextPass,''),/incorrectos/);
+  auth.changeUserState(owner,adminId,true);
+  assert.equal(one('SELECT state FROM auth_user WHERE id=?',adminId).state,'pending');
+  await assert.rejects(()=>auth.login(adminEmail,nextPass,''),/incorrectos/);
+  await auth.completePassword(message(adminEmail,'invite').token!,'invite',pass);
+  adminToken=await auth.login(adminEmail,pass,'');admin=auth.identity(adminToken)!;
+ });
+ await t.test('caducidad, inactividad, autenticación reciente y correo confirmado',async()=>{
+  run('UPDATE auth_session SET idle_expires_at=0 WHERE id=?',admin.sessionId);assert.equal(auth.identity(adminToken),null);
+  adminToken=await auth.login(adminEmail,pass,'');admin=auth.identity(adminToken)!;
+  run('UPDATE auth_session SET expires_at=0 WHERE id=?',admin.sessionId);assert.equal(auth.identity(adminToken),null);
+  run('UPDATE auth_session SET reauthenticated_at=0 WHERE id=?',owner.sessionId);
+  denied(()=>auth.invite(owner,'second@example.test'),428);
+  await auth.reauthenticate(owner,pass);auth.requireActor(owner,true,true);
+  adminToken=await auth.login(adminEmail,pass,'');admin=auth.identity(adminToken)!;
+  await auth.requestEmailChange(admin,pass,'changed@example.test');assert.equal(one('SELECT email FROM auth_user WHERE id=?',admin.id).email,adminEmail);
+  auth.confirmEmail(message('changed@example.test','email').token!);assert.equal(auth.identity(adminToken),null);
+  denied(()=>auth.confirmEmail(message('changed@example.test','email').token!),400);
+  assert.equal(one('SELECT email FROM auth_user WHERE id=?',admin.id).email,'changed@example.test');
+ });
+ await t.test('carrera entre recuperación y desactivación no produce credenciales válidas',async()=>{
+  run('DELETE FROM auth_limit');auth.requestReset('changed@example.test');
+  const pending=auth.completePassword(message('changed@example.test','reset').token!,'reset',nextPass);
+  auth.changeUserState(owner,adminId,false);
+  await assert.rejects(()=>pending,/enlace/);
+  assert.equal(one('SELECT state FROM auth_user WHERE id=?',adminId).state,'disabled');
+ });
+ await t.test('cambio de contraseña del propietario revoca accesos y aplica límites',async()=>{
+  const another=await auth.login(ownerEmail,pass,'');
+  await auth.changePassword(owner,pass,nextPass);
+  assert.equal(auth.identity(ownerToken),null);assert.equal(auth.identity(another),null);
+  ownerToken=await auth.login(ownerEmail,nextPass,'');owner=auth.identity(ownerToken)!;
+  for(let i=0;i<5;i++)await assert.rejects(()=>auth.login('missing@example.test','bad',''),/incorrectos/);
+  await assert.rejects(()=>auth.login('missing@example.test','bad',''),(e:any)=>e.status===429);
+  auth.revokeSessions(owner,owner.id);assert.equal(auth.identity(ownerToken),null);
+  assert.ok(all('SELECT * FROM auth_event').length>15);
+  assert.equal(one("SELECT count(*) n FROM auth_user WHERE role='owner'").n,1);
+ });
+});
