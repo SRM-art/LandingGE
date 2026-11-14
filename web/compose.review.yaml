@@ -1,0 +1,38 @@
+name: landingge-review
+services:
+  review:
+    image: landingge-review:local
+    build:
+      context: .
+      dockerfile: Dockerfile.review
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:4319:4319"
+      - "127.0.0.1:4322:4322"
+    volumes:
+      - type: bind
+        source: ./.local/review-data
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./.local/review-origin.txt
+        target: /review-origin.txt
+        read_only: true
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    mem_limit: 768m
+    cpus: 1.5
+    pids_limit: 128
+    init: true
+    restart: "no"
+    networks: [review]
+networks:
+  review:
+    driver: bridge

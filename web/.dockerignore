@@ -1,0 +1,14 @@
+**
+!package.json
+!package-lock.json
+!astro.config.mjs
+!tsconfig.json
+!src/
+!src/**
+!public/
+!public/**
+!migrations/
+!migrations/**
+!scripts/
+!scripts/start-review.mjs
+!scripts/review-proxy.mjs

@@ -2,10 +2,10 @@ import {carouselText} from './carousel-validation.ts';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { one, run, transaction, audit } from './db.ts';
-import { decimalScaled, slugify } from '../domain/pricing.ts';
+import { decimalScaled, slugify, parseDiscountPrice } from '../domain/pricing.ts';
 const imageInput=z.object({id:z.uuid(),alt:z.string().max(200).default('')});
 const base=z.object({id:z.uuid().optional(),revision:z.number().int().optional(),sku:z.string().trim().min(2).max(60),name:z.string().trim().min(3).max(140),description:z.string().max(6000).default(''),state:z.enum(['draft','published']),featured:z.boolean().default(false),images:z.array(imageInput).max(20)});
-const productInput=base.extend({category_id:z.number().int(),presentation_code:z.string().max(20),price:z.string().max(30),external_sku:z.string().max(100).default(''),measures:z.array(z.object({code:z.enum(['M2','KG','ML','PIEZA']),value:z.string().max(30)})).max(4),facets:z.array(z.number().int()).max(30),sheet:z.object({length_mm:z.string().max(20),width_mm:z.string().max(20),thickness_mm:z.string().max(20),warranty:z.string().max(150),recommendations:z.string().max(3000),advantages:z.string().max(3000)})});
+const productInput=base.extend({category_id:z.number().int(),presentation_code:z.string().max(20),price:z.string().max(30),discount_price:z.string().max(30).optional(),external_sku:z.string().max(100).default(''),measures:z.array(z.object({code:z.enum(['M2','KG','ML','PIEZA']),value:z.string().max(30)})).max(4),facets:z.array(z.number().int()).max(30),sheet:z.object({length_mm:z.string().max(20),width_mm:z.string().max(20),thickness_mm:z.string().max(20),warranty:z.string().max(150),recommendations:z.string().max(3000),advantages:z.string().max(3000)})});
 const projectInput=base.extend({city_id:z.number().int(),sector_id:z.number().int(),product_ids:z.array(z.uuid()).max(100)});
 function validateImages(images:z.infer<typeof imageInput>[]){if(new Set(images.map(i=>i.id)).size!==images.length)throw new Error('Una imagen no puede repetirse en la misma galería.');for(const i of images)if(!one('SELECT 1 FROM media WHERE id=?',i.id))throw new Error('Una imagen ya no está disponible.');}
 function syncImages(kind:'product'|'project',id:string,images:z.infer<typeof imageInput>[],now:string){
@@ -20,8 +20,14 @@ export function saveProduct(input:unknown){const d=productInput.parse(input);val
  if(!one('SELECT 1 FROM category WHERE id=?',d.category_id)||!one('SELECT 1 FROM presentation WHERE code=?',d.presentation_code))throw new Error('Selecciona categoría y presentación válidas.');
  if(d.state==='published'){if(!price)throw new Error('El producto necesita un precio final para publicarse.');if(!d.images.length)throw new Error('Añade al menos una imagen para publicar.');if([1,2,3].includes(d.category_id)&&d.presentation_code==='CAJA'&&!measures.some(m=>m.code==='M2'))throw new Error('Los pisos por caja necesitan cobertura en m².');}
  return transaction(()=>{const old=previous('product',d);const id=old?.id||randomUUID();const now=new Date().toISOString();
- if(old)run('UPDATE product SET sku=?,name=?,description=?,category_id=?,presentation_code=?,price_cents=?,state=?,featured=?,revision=revision+1,updated_at=? WHERE id=?',d.sku,d.name,d.description,d.category_id,d.presentation_code,price,d.state,Number(d.featured),now,id);
- else run('INSERT INTO product(id,sku,slug,name,description,category_id,presentation_code,price_cents,state,featured,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',id,d.sku,slugify(d.name)+'-'+slugify(d.sku),d.name,d.description,d.category_id,d.presentation_code,price,d.state,Number(d.featured),now,now);
+ const discountPrice = d.discount_price === undefined
+   ? (old?.discount_price_cents ?? 0)
+   : parseDiscountPrice(d.discount_price);
+ if (discountPrice > 0 && (!price || discountPrice >= price)) {
+   throw new Error('El precio con descuento debe ser menor que el precio normal y mayor que cero. Usa 0 para quitar el descuento.');
+ }
+ if(old)run('UPDATE product SET sku=?,name=?,description=?,category_id=?,presentation_code=?,price_cents=?,discount_price_cents=?,state=?,featured=?,revision=revision+1,updated_at=? WHERE id=?',d.sku,d.name,d.description,d.category_id,d.presentation_code,price,discountPrice,d.state,Number(d.featured),now,id);
+ else run('INSERT INTO product(id,sku,slug,name,description,category_id,presentation_code,price_cents,discount_price_cents,state,featured,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',id,d.sku,slugify(d.name)+'-'+slugify(d.sku),d.name,d.description,d.category_id,d.presentation_code,price,discountPrice,d.state,Number(d.featured),now,now);
  run('INSERT INTO product_private VALUES(?,?) ON CONFLICT(product_id) DO UPDATE SET external_sku=excluded.external_sku',id,d.external_sku||null);
  run('UPDATE measure SET deleted_at=? WHERE product_id=? AND deleted_at IS NULL',now,id);for(const m of measures)run('INSERT INTO measure(product_id,unit_code,amount,deleted_at) VALUES(?,?,?,NULL) ON CONFLICT(product_id,unit_code) DO UPDATE SET amount=excluded.amount,deleted_at=NULL',id,m.code,m.amount);
  run('INSERT INTO technical_sheet VALUES(?,?,?,?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET length_mm=excluded.length_mm,width_mm=excluded.width_mm,thickness_mm=excluded.thickness_mm,warranty=excluded.warranty,recommendations=excluded.recommendations,advantages=excluded.advantages',id,d.sheet.length_mm,d.sheet.width_mm,d.sheet.thickness_mm,d.sheet.warranty,d.sheet.recommendations,d.sheet.advantages);

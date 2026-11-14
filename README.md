@@ -1,6 +1,6 @@
 # LandingGE — Gestión Esencial
 
-Versión local para revisión del equipo. Landing de la empresa y catálogo de productos y proyectos con consultas por WhatsApp. Estado actualizado el 9 de noviembre de 2026.
+Versión local para revisión del equipo. Landing de la empresa y catálogo de productos y proyectos con consultas por WhatsApp. Estado actualizado el 14 de noviembre de 2026.
 
 ## Ejecutar una copia recién descargada
 
@@ -24,14 +24,43 @@ En Windows, después de `npm ci`, también puedes usar `INICIAR_LOCAL.cmd` desde
 
 ## Funciones disponibles
 
-- Landing editable y carrusel automático con tres slides base y slides adicionales.
+- Landing editable, navegación fija en escritorio y carrusel de imágenes cada 9 segundos, con tres slides base, slides adicionales, flechas y gestos táctiles.
 - Catálogo con filtros, ordenamiento y páginas de 20 productos.
 - Productos con precio final en COP por presentación completa, equivalencias informativas, imágenes, ficha técnica y SKU interno público. El SKU externo es privado y opcional.
+- Precio de oferta opcional: 0 desactiva el descuento; otro valor representa el precio final de oferta, inferior al normal. Porcentaje calculado automáticamente, medalla, precio anterior tachado y filtro de ofertas.
+- Campos de precio del administrador con formato visual `$ 1.234.567`; el formato se retira antes de enviar los valores al servidor.
+- Carrusel de hasta 8 productos en inicio: mayores porcentajes de descuento y, para completar, productos sin descuento de menor precio. Avanza un producto cada 6 segundos, con puntos, flechas y desplazamiento táctil.
+- Simulador de compra en modal, disponible exclusivamente para la categoría `pisos` vendida por `CAJA`: área, excedente ajustable con 10 % inicial, cajas completas redondeadas hacia arriba, cobertura, total estimado y consulta por WhatsApp.
 - Proyectos con referencia, ciudad, imágenes y productos utilizados. El recorrido comercial conduce del proyecto al producto y a WhatsApp.
 - Administración de contenido, roles propietario/administrador, sesiones revocables y recuperación simulada.
 - Ocultación y restauración de registros, bitácora de contenido y exportación privada.
 
 Los productos, proyectos, precios y fotografías iniciales son referenciales. El número de WhatsApp se configura en el panel. Revisa contenido, derechos de uso y datos de contacto antes de publicar.
+
+## Revisión aislada con Docker
+
+Para una revisión temporal compartida, se añadió una configuración Docker independiente del arranque de desarrollo. Usa la compilación actual con usuario sin privilegios, código de solo lectura y una carpeta limitada para datos. La aplicación y el proxy corren dentro del contenedor.
+
+Primero inicializa y configura la versión local descrita arriba: una cuenta recién clonada no incluye el usuario ni la contraseña de la demostración de otro equipo. Después, con Docker Desktop iniciado, ejecuta desde `web/`:
+
+```sh
+node scripts/prepare-review-data.mjs
+docker compose -f compose.review.yaml up -d --build
+```
+
+Abre [la versión aislada](http://127.0.0.1:4322/). El preparador copia SQLite y los medios referenciados, conserva las cuentas y sus hashes, e invalida las sesiones anteriores en la copia. Si `.local/review-data/` ya existe, se conserva sin sobrescribir. Los cambios del administrador de esta versión quedan separados de la base original.
+
+Para detenerla:
+
+```sh
+docker compose -f compose.review.yaml stop
+```
+
+El proxy escucha en `127.0.0.1:4319`. Un túnel temporal debe apuntar a ese proxy y su URL HTTPS exacta debe guardarse en `.local/review-origin.txt`. La configuración bloquea el buzón de correo simulado y el alta inicial a través del proxy. No conectes el túnel directamente al puerto 4322. No se incluyen el ejecutable de Cloudflare, enlaces públicos activos ni credenciales en este repositorio.
+
+Esta configuración es para revisión y no sustituye los requisitos de producción. Docker debe mantenerse iniciado; apagar o suspender el equipo interrumpe el acceso. Después de modificar el código, vuelve a ejecutar el comando `up -d --build`.
+
+Consulta [la guía de revisión aislada](08_REVISION_AISLADA_DOCKER.md), [el criterio del simulador de pisos](06_SIMULADOR_DE_PISOS.md) y [la procedencia del teléfono provisional](05_CONTACTO_PUBLICO.md).
 
 ## Organización y tecnologías
 
@@ -86,7 +115,7 @@ Evita agregar con `git add -f` archivos ignorados. Usa `npm ci` para respetar `p
 5. Completar revisión de contraseñas comprometidas, retención de datos técnicos, alertas, copias remotas y ensayo de restauración.
 6. Verificar el contenido real, permisos de los recursos de marca e imágenes y costos vigentes de los servicios.
 
-La autenticación local usa scrypt nativo de Node, cookies y sesiones en SQLite. Better Auth permanece como candidato para evaluación de producción. Cloudflare Access queda como opción para entornos internos de prueba. Esta entrega requiere los ajustes anteriores antes de exponer el panel en Internet.
+La autenticación local usa scrypt nativo de Node, cookies y sesiones en SQLite. Better Auth permanece como candidato para evaluación de producción. Cloudflare Access queda como opción para entornos internos de prueba. Un despliegue de producción requiere los ajustes anteriores. La demostración temporal aislada utiliza el proxy y las restricciones de la guía de Docker.
 
 ## Documentación
 

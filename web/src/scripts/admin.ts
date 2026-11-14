@@ -1,4 +1,5 @@
-import {decimalScaled,equivalent,money} from '../domain/pricing';
+import {formatCopInput,plainCopInput} from '../domain/cop-input';
+import {decimalScaled,equivalent,money,parseDiscountPrice,productPricing} from '../domain/pricing';
 type Img={id:string,alt:string};const galleries=new Map<string,Img[]>();
 document.querySelectorAll<HTMLInputElement|HTMLTextAreaElement>('[data-character-limit]').forEach(input=>{
  const counter=document.getElementById(input.getAttribute('aria-describedby')||'');
@@ -20,10 +21,60 @@ document.querySelectorAll<HTMLElement>('[data-image-editor]').forEach(root=>{con
 });
 function val(f:FormData,name:string){return String(f.get(name)||'').trim();}
 function bindForm(selector:string,getPayload:(f:FormData,form:HTMLFormElement)=>unknown,action:string){const form=document.querySelector<HTMLFormElement>(selector);if(!form)return;let dirty=false;form.addEventListener('input',()=>dirty=true);window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();}});form.addEventListener('submit',async e=>{e.preventDefault();const button=form.querySelector<HTMLButtonElement>('[data-save]')!;const status=form.querySelector<HTMLElement>('[data-form-status]')!;button.disabled=true;status.classList.remove('error');status.textContent='Guardando…';try{const result=await api(action,getPayload(new FormData(form),form));dirty=false;status.textContent='Cambios guardados.';if(action==='content'){form.dataset.revision=String(Number(form.dataset.revision)+1);toast('Contenido actualizado.');}else if(action==='slide'){location.href='/admin/contenidos?saved=1#diapositivas-adicionales';}else{location.href='/admin/'+(action==='product'?'productos':'proyectos')+'/'+result.id+'?saved=1';}}catch(e){status.classList.add('error');status.textContent=(e as Error).message;}finally{button.disabled=false;}});}
-const record=document.querySelector<HTMLFormElement>('[data-record-form]');if(record){const kind=record.dataset.kind!;bindForm('[data-record-form]',(f,form)=>{const data:any={...(form.dataset.id?{id:form.dataset.id,revision:Number(form.dataset.revision)}:{}),sku:val(f,'sku'),name:val(f,'name'),description:val(f,'description'),state:val(f,'state')||'draft',featured:f.has('featured'),images:galleries.get('images')||[]};if(kind==='product'){Object.assign(data,{category_id:Number(val(f,'category_id')),presentation_code:val(f,'presentation_code'),price:val(f,'price'),external_sku:val(f,'external_sku'),measures:['M2','KG','ML','PIEZA'].map(code=>({code,value:val(f,'measure_'+code)})),facets:f.getAll('facets').map(Number),sheet:Object.fromEntries(['length_mm','width_mm','thickness_mm','warranty','recommendations','advantages'].map(k=>[k,val(f,'sheet_'+k)]))});}else Object.assign(data,{city_id:Number(val(f,'city_id')),sector_id:Number(val(f,'sector_id')),product_ids:f.getAll('product_ids')});return data;},kind);}
+const record=document.querySelector<HTMLFormElement>('[data-record-form]');if(record){const kind=record.dataset.kind!;bindForm('[data-record-form]',(f,form)=>{const data:any={...(form.dataset.id?{id:form.dataset.id,revision:Number(form.dataset.revision)}:{}),sku:val(f,'sku'),name:val(f,'name'),description:val(f,'description'),state:val(f,'state')||'draft',featured:f.has('featured'),images:galleries.get('images')||[]};if(kind==='product'){Object.assign(data,{category_id:Number(val(f,'category_id')),presentation_code:val(f,'presentation_code'),price:plainCopInput(val(f,'price')),discount_price:plainCopInput(val(f,'discount_price')),external_sku:val(f,'external_sku'),measures:['M2','KG','ML','PIEZA'].map(code=>({code,value:val(f,'measure_'+code)})),facets:f.getAll('facets').map(Number),sheet:Object.fromEntries(['length_mm','width_mm','thickness_mm','warranty','recommendations','advantages'].map(k=>[k,val(f,'sheet_'+k)]))});}else Object.assign(data,{city_id:Number(val(f,'city_id')),sector_id:Number(val(f,'sector_id')),product_ids:f.getAll('product_ids')});return data;},kind);}
 bindForm('[data-content-form]',(f,form)=>({...Object.fromEntries(['whatsapp','phone','email','address','hours','about_title','about_text'].map(k=>[k,val(f,k)])),revision:Number(form.dataset.revision),about_media_id:galleries.get('about_image')?.[0]?.id||null,slides:Array.from(form.querySelectorAll<HTMLElement>('[data-slide-editor]')).map(el=>{const id=Number(el.dataset.slideId);const prefix='slide_'+id+'_';return {id,...Object.fromEntries(['title','subtitle','description','button_text','button_href'].map(k=>[k,val(f,prefix+k)])),media_id:galleries.get(prefix+'image')?.[0]?.id||'',active:true};}),services:Array.from(form.querySelectorAll<HTMLElement>('[data-service-editor]')).map(el=>{const id=Number(el.dataset.serviceId);return {id,title:val(f,'service_'+id+'_title'),description:val(f,'service_'+id+'_description')};})}),'content');
-function updatePrice(){const out=document.querySelector<HTMLElement>('[data-price-preview]');if(!out)return;const price=document.querySelector<HTMLInputElement>('[data-price]')?.value||'';const values:string[]=[];try{const cents=decimalScaled(price,100);document.querySelectorAll<HTMLInputElement>('[data-measure]').forEach(el=>{if(el.value.trim()){const e=equivalent(cents,decimalScaled(el.value,10000));if(e!==null)values.push(money(e)+' / '+el.dataset.symbol);}});out.textContent=values.length?'Equivalentes informativos: '+values.join(' · '):'Agrega el contenido de la presentación para calcular los equivalentes.';}catch{out.textContent='Agrega precio y contenido positivos para ver los equivalentes.';}}
-document.querySelectorAll('[data-price],[data-measure]').forEach(el=>el.addEventListener('input',updatePrice));updatePrice();
+function updatePrice() {
+ const output = document.querySelector<HTMLElement>('[data-price-preview]');
+ const discountOutput = document.querySelector<HTMLElement>('[data-discount-preview]');
+ if (!output) return;
+ const price = document.querySelector<HTMLInputElement>('[data-price]')?.value || '';
+ const discountInput = document.querySelector<HTMLInputElement>('[data-discount-price]');
+ const values: string[] = [];
+ discountInput?.setCustomValidity('');
+ try {
+  const regular = decimalScaled(plainCopInput(price), 100);
+  const discount = parseDiscountPrice(plainCopInput(discountInput?.value || ''));
+  if (discount && discount >= regular) {
+   const message = 'El precio con descuento debe ser menor que el precio normal.';
+   discountInput?.setCustomValidity(message);
+   throw new Error(message);
+  }
+  const pricing = productPricing({price_cents: regular, discount_price_cents: discount});
+  if (discountOutput) discountOutput.textContent = pricing.hasDiscount
+   ? `${pricing.discountLabel}% de descuento · Precio final: ${money(pricing.final!)}`
+   : 'Sin descuento. Se mostrará el precio normal.';
+  document.querySelectorAll<HTMLInputElement>('[data-measure]').forEach(input => {
+   if (input.value.trim()) {
+    const amount = equivalent(pricing.final!, decimalScaled(input.value, 10000));
+    if (amount !== null) values.push(money(amount) + ' / ' + input.dataset.symbol);
+   }
+  });
+  output.textContent = values.length ? 'Equivalentes informativos: ' + values.join(' · ')
+   : 'Agrega el contenido de la presentación para calcular los equivalentes.';
+ } catch (error) {
+  output.textContent = 'Agrega precio y contenido válidos para ver los equivalentes.';
+  if (discountOutput) discountOutput.textContent = (error as Error).message;
+ }
+}
+document.querySelectorAll<HTMLInputElement>('[data-price],[data-discount-price]').forEach(input => {
+ // Initial values come from stored cents as a plain decimal, before display formatting.
+ input.value = formatCopInput(input.value.replace('.', ','));
+ input.addEventListener('input', () => {
+  const start = input.selectionStart ?? input.value.length;
+  const significant = input.value.slice(0, start).replace(/[^0-9,]/g, '').length;
+  input.value = formatCopInput(input.value);
+  let caret = 2;
+  let seen = 0;
+  while (caret < input.value.length && seen < significant) {
+   if (/[0-9,]/.test(input.value[caret])) seen++;
+   caret++;
+  }
+  input.setSelectionRange(caret, caret);
+ });
+});
+document.querySelectorAll('[data-price],[data-discount-price],[data-measure]').forEach(input => input.addEventListener('input', updatePrice));
+updatePrice();
+
 document.querySelector<HTMLInputElement>('[data-relation-search]')?.addEventListener('input',e=>{const q=(e.target as HTMLInputElement).value.toLocaleLowerCase();document.querySelectorAll<HTMLElement>('[data-relation-row]').forEach(row=>row.hidden=!row.textContent?.toLocaleLowerCase().includes(q));});
 if(new URLSearchParams(location.search).has('saved'))toast('Cambios guardados correctamente.');
 

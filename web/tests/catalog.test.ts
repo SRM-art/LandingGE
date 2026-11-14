@@ -4,7 +4,7 @@ import {mkdtempSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {randomUUID} from 'node:crypto';
-import {decimalScaled,equivalent,slugify} from '../src/domain/pricing.ts';
+import {decimalScaled,equivalent,slugify,parseDiscountPrice,productPricing} from '../src/domain/pricing.ts';
 
 process.env.GE_DATA_DIR=mkdtempSync(join(tmpdir(),'gestion-esencial-test-'));
 const {default:db,run,one,product,products,project,mediaVisible}=await import('../src/server/db.ts');
@@ -52,3 +52,37 @@ test('validación y transacciones no dejan publicaciones incompletas',()=>{
  assert.equal(products(new URLSearchParams({q:'prueba-001'})).length,1);
 });
 test.after(()=>db.close());
+
+
+test('descuentos, filtros, ordenamiento y actualización atómica del precio', () => {
+ const created = saveProduct({...base, sku:'OFERTA-001', discount_price:'80000'});
+ let offer = product(created.id, true);
+ assert.equal(offer.price_cents, 10000000);
+ assert.equal(offer.discount_price_cents, 8000000);
+ assert.equal(productPricing(offer).final, 8000000);
+ assert.equal(productPricing(offer).discountLabel, '20');
+ assert.equal(parseDiscountPrice('0,00'), 0);
+ assert.equal(parseDiscountPrice(''), 0);
+ assert.equal(productPricing({price_cents:10000}).hasDiscount, false);
+ assert.equal(productPricing({price_cents:10000,discount_price_cents:6667}).discountLabel, '33,33');
+ const onlyOffers = new URLSearchParams({discount:'1'});
+ assert.ok(products(onlyOffers).some(row => row.id === created.id));
+ const priceFilter = new URLSearchParams({category:'pisos',presentation:'CAJA',min:'75000',max:'85000'});
+ assert.ok(products(priceFilter).some(row => row.id === created.id));
+ const competitor = saveProduct({...base,sku:'OFERTA-002',price:'90000'});
+ const sorted = products(new URLSearchParams({category:'pisos',presentation:'CAJA',sort:'price-up'}));
+ assert.ok(sorted.findIndex(row => row.id === created.id) < sorted.findIndex(row => row.id === competitor.id));
+ for (const invalid of ['100000','100001','-1','abc']) {
+  assert.throws(() => saveProduct({...base,id:offer.id,revision:offer.revision,sku:offer.sku,discount_price:invalid}));
+ }
+ assert.equal(product(offer.id,true).discount_price_cents,8000000);
+ saveProduct({...base,id:offer.id,revision:offer.revision,sku:offer.sku,name:'Oferta actualizada'});
+ offer = product(offer.id,true);
+ assert.equal(offer.discount_price_cents,8000000,'El cliente anterior conserva un descuento si omite el campo');
+ saveProduct({...base,id:offer.id,revision:offer.revision,sku:offer.sku,price:'70000',discount_price:'0'});
+ offer = product(offer.id,true);
+ assert.equal(offer.price_cents,7000000);
+ assert.equal(offer.discount_price_cents,0);
+ assert.ok(!products(onlyOffers).some(row => row.id === offer.id));
+ assert.throws(() => run('UPDATE product SET discount_price_cents=price_cents WHERE id=?',offer.id));
+});

@@ -1,0 +1,61 @@
+@media (min-width: 801px) {
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    box-shadow: 0 3px 18px #011f5f0b;
+  }
+  html { scroll-padding-top: 125px; }
+}
+
+.discount-medal {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  min-height: 72px;
+  padding: 9px 5px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: #fff;
+  border: 2px solid #fff;
+  box-shadow: 0 3px 12px #011f5f25;
+  z-index: 2;
+  text-align: center;
+}
+.discount-medal strong { font-size: 17px; line-height: 1.2; }
+.discount-medal small { font-size: 10px; letter-spacing: .1em; margin-top: 3px; }
+.has-discount .card-category { max-width: calc(100% - 105px); }
+/* Shared rows keep sale and regular cards the same height. */
+.product-caption { display: grid; grid-template-rows: 11px 38px 30px 14px; height: 123px; min-height: 123px; padding: 14px 18px 16px; }
+.product-caption h3 { margin: 1px 0; font-size: 18px; line-height: 18px; min-height: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-price-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; min-width: 0; }
+.product-caption .card-current-price { font-size: 16px; line-height: 1.15; margin: 0; white-space: nowrap; }
+.product-caption .price-now-label { display: block; font-size: 10px; font-weight: 400; }
+.product-caption .price-before { font-size: 10px; line-height: 1.25; color: #edf3f8; white-space: nowrap; text-align: right; }
+.product-caption .price-before del { display: block; font-size: 11px; }
+.product-caption .card-sale-unit { font-size: 11px; line-height: 14px; }
+.discount-medal small { color: #f1f6ff; opacity: 1; }
+.filters .discount-filter { display: flex; align-items: flex-start; gap: 9px; cursor: pointer; line-height: 1.5; }
+.filters .discount-filter input { width: 16px; height: 16px; min-height: 16px; flex: 0 0 16px; margin: 3px 0 0; accent-color: var(--navy); }
+.detail-discount { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 10px; }
+.detail-discount .price-before { color: var(--muted); font-size: 14px; }
+.detail-discount-label { color: var(--navy); background: var(--paper); border-radius: 20px; padding: 6px 12px; font-size: 12px; }
+@media (max-width: 520px) {
+  .discount-medal { width: 62px; min-height: 62px; top: 8px; right: 8px; }
+  .discount-medal strong { font-size: 15px; }
+  .has-discount .card-category { max-width: calc(100% - 86px); }
+}
+
+@media (max-width: 520px) {
+  .product-caption { height: 115px; min-height: 115px; padding: 12px 11px 14px; grid-template-rows: 11px 34px 30px 14px; }
+  .product-caption h3 { margin: 1px 0; font-size: 16px; line-height: 16px; min-height: 0; }
+  .product-caption .card-current-price { font-size: 14px; }
+  .product-caption .price-before, .product-caption .price-now-label { font-size: 9px; }
+  .product-caption .price-before del { font-size: 9px; }
+  .product-caption .card-sale-unit { font-size: 10px; }
+}

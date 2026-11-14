@@ -1,0 +1,21 @@
+FROM node:24-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY astro.config.mjs tsconfig.json ./
+COPY src ./src
+COPY public ./public
+COPY migrations ./migrations
+RUN npm run build && npm prune --omit=dev
+
+FROM node:24-bookworm-slim AS runtime
+ENV NODE_ENV=production GE_CONTAINER_REVIEW=1 LOCAL_PREVIEW=1 GE_DATA_DIR=/data REVIEW_ORIGIN_FILE=/review-origin.txt
+WORKDIR /app
+COPY --from=build --chown=node:node /app/dist ./dist
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/migrations ./migrations
+COPY --from=build --chown=node:node /app/package.json ./package.json
+COPY --chown=node:node scripts/start-review.mjs scripts/review-proxy.mjs ./scripts/
+USER node
+EXPOSE 4319 4322
+CMD ["node", "scripts/start-review.mjs"]

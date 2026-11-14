@@ -1,5 +1,24 @@
 ---
-import {money} from '../domain/pricing';import Icon from './Icon.astro';
+import {money,productPricing} from '../domain/pricing';import Icon from './Icon.astro';
 const {p}=Astro.props;const cover=p.cover||p.images?.[0]?.id;
+const pricing = productPricing(p);
 ---
-<a class="product-card" href={'/catalogo/'+p.slug}><div class="product-photo">{cover?<img src={'/media/'+cover+'/480'} alt={p.name} loading="lazy" width="480" height="480"/>:<div class="photo-placeholder">Imagen por agregar</div>}<span class="card-category">{p.category}</span><span class="card-arrow"><Icon/></span></div><div class="product-caption"><span class="sku">{p.sku}</span><h3>{p.name}</h3><p>{p.price_cents?money(p.price_cents):'Consultar precio'} <small>/ {p.unit_name}{p.presentation_code==='SACO'?' (saco)':p.presentation_code==='BOLSA'?' (bolsa)':''}</small></p></div></a>
+<a class:list={['product-card', { 'has-discount': pricing.hasDiscount }]} href={'/catalogo/'+p.slug}>
+  <div class="product-photo">
+    {cover ? <img src={'/media/'+cover+'/480'} alt={p.name} loading="lazy" width="480" height="480"/> : <div class="photo-placeholder">Imagen por agregar</div>}
+    <span class="card-category">{p.category}</span>
+    {pricing.hasDiscount && <span class="discount-medal" aria-label={`${pricing.discountLabel}% de descuento`}><strong>{pricing.discountLabel}%</strong><small>DTO.</small></span>}
+    <span class="card-arrow"><Icon/></span>
+  </div>
+  <div class="product-caption">
+    <span class="sku">{p.sku}</span><h3>{p.name}</h3>
+    <div class="card-price-row">
+      <p class="card-current-price">
+        {pricing.hasDiscount && <span class="price-now-label">Ahora</span>}
+        {pricing.final ? money(pricing.final) : 'Consultar precio'}
+      </p>
+      {pricing.hasDiscount && <span class="price-before">Antes <del>{money(pricing.regular!)}</del></span>}
+    </div>
+    <small class="card-sale-unit">/ {p.unit_name}{p.presentation_code==='SACO'?' (saco)':p.presentation_code==='BOLSA'?' (bolsa)':''}</small>
+  </div>
+</a>

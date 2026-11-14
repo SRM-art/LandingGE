@@ -1,0 +1,47 @@
+---
+import {quantity,productPricing} from '../domain/pricing';
+import {isFloorByBox} from '../domain/floor-calculator';
+import WhatsApp from './WhatsApp.astro';
+import Icon from './Icon.astro';
+const {p}=Astro.props;
+const coverage=p.measures.find((m:any)=>m.unit_code==='M2')?.amount;
+const validCoverage=Number.isSafeInteger(coverage)&&coverage>0;
+const pricing=productPricing(p);
+---
+{isFloorByBox(p)&&<div class="floor-simulator" data-floor-calculator data-coverage={validCoverage?coverage:0} data-price={pricing.final??''} data-product={p.name} data-sku={p.sku}>
+  <button type="button" class="button outline floor-open" data-floor-open aria-haspopup="dialog" aria-controls="floor-calculator-dialog">¡Calcula tu espacio!</button>
+  <dialog id="floor-calculator-dialog" class="floor-modal" data-floor-dialog aria-labelledby="floor-calculator-title">
+    <button type="button" class="floor-close" data-floor-close aria-label="Cerrar simulador"><Icon name="close" size={22}/></button>
+    <section class="floor-calculator">
+  <p class="eyebrow">SIMULADOR DE COMPRA</p>
+  <h2 id="floor-calculator-title">Calcula tus cajas de piso.</h2>
+  {validCoverage?<>
+    <p class="floor-intro">Cada caja cubre <strong>{quantity(coverage)} m²</strong>. Ingresa el área que deseas cubrir, sin agregar desperdicio.</p>
+    <form data-floor-form novalidate>
+      <div class="floor-fields">
+        <label>Área de tu piso (m²)<input name="floor_area" data-floor-area inputmode="decimal" placeholder="Ej. 20 o 20,5" maxlength="16" required aria-describedby="floor-area-help floor-error"/></label>
+        <label>Excedente por cortes (%)<input name="floor_waste" data-floor-waste type="number" min="0" max="30" step="1" value="10" inputmode="numeric" required aria-describedby="floor-waste-help floor-error"/></label>
+      </div>
+      <p id="floor-area-help" class="floor-help">Para un espacio rectangular: largo × ancho. Si son varios espacios, suma sus áreas.</p>
+      <p id="floor-waste-help" class="floor-help">Usamos 10 % como referencia para cortes y desperdicio. El margen depende del material y del diseño; ajústalo con tu instalador. Los patrones complejos pueden necesitar más.</p>
+      <button type="submit" class="button primary">Calcular cajas</button>
+    </form>
+    <p data-floor-error id="floor-error" class="floor-error" role="alert"></p>
+    <div data-floor-result class="floor-result" hidden aria-live="polite" aria-atomic="true">
+      <p class="floor-boxes">Necesitarías <strong data-floor-boxes></strong></p>
+      <dl><div><dt>Área con excedente</dt><dd data-floor-required></dd></div><div><dt>Cobertura de las cajas completas</dt><dd data-floor-covered></dd></div><div><dt>Total estimado del producto</dt><dd data-floor-total></dd></div></dl>
+      <p class="floor-help">Se redondea hacia arriba a cajas completas. El total usa el precio actual, incluido el descuento si aplica; no incluye instalación, transporte ni otros materiales. La cantidad final debe confirmarse con un asesor.</p>
+      <WhatsApp label="Consultar esta cantidad" message=""/>
+    </div>
+    <details class="floor-method"><summary>¿Cómo se calcula?</summary><p>Área × (1 + excedente / 100) ÷ m² por caja. Siempre se redondea al siguiente número entero de cajas cuando hay una fracción. La cobertura comprada puede superar el área con excedente porque se venden cajas completas.</p></details>
+    <noscript><p class="floor-help">Activa JavaScript para utilizar el simulador o consulta la cantidad con nuestro equipo.</p></noscript>
+  </>:<p class="floor-help">Estamos completando los m² por caja de este piso. Consulta con nuestro equipo para calcular la cantidad.</p>}
+</section></dialog></div>}
+<style>
+.floor-simulator{margin-top:24px}.floor-open{border-color:#9bb1c3;color:var(--blue);font-size:14px}.floor-modal{width:min(640px,calc(100% - 32px));max-height:calc(100dvh - 32px);padding:0;overflow:auto;overscroll-behavior:contain;border-radius:10px}.floor-close{position:absolute;right:11px;top:10px;width:32px;height:32px;display:grid;place-items:center;border-radius:50%;z-index:1}.floor-close:hover{background:#e2eaf0}
+
+.floor-calculator{margin:0;padding:42px 28px 28px;background:var(--paper);border:1px solid #dce5ed;border-radius:7px}
+.floor-calculator>.eyebrow{font-size:10px;margin-bottom:9px}.floor-calculator h2{font-size:27px;line-height:1.15;margin-bottom:14px}.floor-intro{font-size:14px;line-height:1.6;margin-bottom:20px}.floor-fields{display:grid;grid-template-columns:1.25fr 1fr;gap:15px}.floor-fields label{font-size:12px}.floor-fields input{background:#fff;font-size:14px;min-width:0}.floor-help{font-size:12px;line-height:1.6;color:var(--muted);margin:10px 0}.floor-calculator form>.button{margin-top:8px;font-size:13px;min-height:42px}.floor-error{font-size:12px;color:#a12c3d;margin-top:12px}.floor-error:empty{display:none}.floor-result{margin-top:20px;padding-top:19px;border-top:1px solid #cbd7e1}.floor-result[hidden]{display:none}.floor-boxes{font-size:14px}.floor-boxes strong{display:block;font-size:34px;font-weight:500;line-height:1.3;color:var(--navy);margin-top:3px}.floor-result dl{margin:15px 0;font-size:13px}.floor-result dl>div{display:flex;justify-content:space-between;gap:15px;padding:8px 0;border-bottom:1px solid #dce5ed}.floor-result dd{margin:0;text-align:right;font-weight:500;color:var(--navy)}.floor-result :global(.whatsapp-button){font-size:13px;margin-top:10px}.floor-method{font-size:12px;margin-top:16px}.floor-method summary{cursor:pointer;text-decoration:underline}.floor-method p{line-height:1.65;margin-top:10px;color:var(--muted)}
+@media(max-width:520px){.floor-calculator{padding:42px 19px 22px}.floor-open{width:100%}.floor-calculator h2{font-size:25px}.floor-fields{grid-template-columns:1fr;gap:14px}.floor-result dl>div{font-size:12px}.floor-result :global(.whatsapp-button){width:100%}}
+</style>
+<script src="../scripts/floor-calculator.ts"></script>

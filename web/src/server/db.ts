@@ -23,7 +23,7 @@ export function settings(){return one('SELECT * FROM site_settings WHERE id=1');
 export function options(){return {categories:all('SELECT * FROM category'),presentations:all('SELECT p.*,c.name AS unit_name FROM presentation p JOIN commercial_unit c ON c.code=p.commercial_unit'),units:all('SELECT * FROM measure_unit'),facets:all('SELECT * FROM facet ORDER BY type,name'),cities:all('SELECT * FROM city ORDER BY name'),sectors:all('SELECT * FROM sector')};}
 export function images(kind:'product'|'project',id:string){return all(`SELECT m.id,m.original_name,m.width,m.height,i.alt,i.position FROM ${kind}_image i JOIN media m ON m.id=i.media_id WHERE i.${kind}_id=? AND i.deleted_at IS NULL ORDER BY i.position,m.id`,id);}
 export function product(idOrSlug:string,admin=false){
- const p=one(`SELECT p.*,c.name AS category,pr.name AS presentation,u.name AS unit_name FROM product p JOIN category c ON c.id=p.category_id JOIN presentation pr ON pr.code=p.presentation_code JOIN commercial_unit u ON u.code=pr.commercial_unit WHERE (p.id=? OR p.slug=?) ${admin?'':"AND p.deleted_at IS NULL AND p.state='published'"}`,idOrSlug,idOrSlug);
+ const p=one(`SELECT p.*,c.name AS category,c.code AS category_code,pr.name AS presentation,u.name AS unit_name FROM product p JOIN category c ON c.id=p.category_id JOIN presentation pr ON pr.code=p.presentation_code JOIN commercial_unit u ON u.code=pr.commercial_unit WHERE (p.id=? OR p.slug=?) ${admin?'':"AND p.deleted_at IS NULL AND p.state='published'"}`,idOrSlug,idOrSlug);
  if(!p)return null;
  p.images=images('product',p.id);p.measures=all('SELECT m.*,u.name,u.symbol FROM measure m JOIN measure_unit u ON u.code=m.unit_code WHERE m.product_id=? AND m.deleted_at IS NULL',p.id);
  p.facets=all('SELECT f.* FROM product_facet pf JOIN facet f ON f.id=pf.facet_id WHERE pf.product_id=? AND pf.deleted_at IS NULL',p.id);
@@ -37,6 +37,7 @@ export function products(params:URLSearchParams=new URLSearchParams(),admin=fals
  if(!admin)where.push("p.deleted_at IS NULL AND p.state='published'");
  if(admin && params.get('view')==='hidden')where.push('p.deleted_at IS NOT NULL');
  else if(admin)where.push('p.deleted_at IS NULL');
+ if (params.get('discount') === '1') where.push('p.discount_price_cents > 0 AND p.discount_price_cents < p.price_cents');
  const q=(params.get('q')||'').slice(0,100).trim();
  if(q){where.push("(p.name LIKE ? ESCAPE '\\' OR p.sku LIKE ? ESCAPE '\\')");const term='%'+q.replace(/[\\%_]/g,'\\$&')+'%';args.push(term,term);}
  if(params.get('category')){where.push('c.code=?');args.push(params.get('category'));}
@@ -44,10 +45,11 @@ export function products(params:URLSearchParams=new URLSearchParams(),admin=fals
  if(params.get('presentation')){where.push('p.presentation_code=?');args.push(params.get('presentation'));}
  if(params.get('size')){where.push("EXISTS(SELECT 1 FROM technical_sheet ts WHERE ts.product_id=p.id AND ts.length_mm || 'x' || ts.width_mm=?)");args.push(params.get('size'));}
  // Price comparisons are only enabled for a selected category and presentation.
+ const effectivePrice = 'CASE WHEN p.discount_price_cents > 0 AND p.discount_price_cents < p.price_cents THEN p.discount_price_cents ELSE p.price_cents END';
  const comparable=!!params.get('category')&&!!params.get('presentation');
- if(comparable && params.get('min')){const n=Number(params.get('min'));if(Number.isFinite(n)){where.push('p.price_cents>=?');args.push(Math.round(n*100));}}
- if(comparable && params.get('max')){const n=Number(params.get('max'));if(Number.isFinite(n)){where.push('p.price_cents<=?');args.push(Math.round(n*100));}}
- const sort=params.get('sort');const order=comparable&&sort==='price-up'?'p.price_cents ASC':comparable&&sort==='price-down'?'p.price_cents DESC':sort==='name'?'p.name ASC':'p.featured DESC,p.created_at DESC,p.name ASC';
+ if(comparable && params.get('min')){const n=Number(params.get('min'));if(Number.isFinite(n)){where.push(effectivePrice + '>=?');args.push(Math.round(n*100));}}
+ if(comparable && params.get('max')){const n=Number(params.get('max'));if(Number.isFinite(n)){where.push(effectivePrice + '<=?');args.push(Math.round(n*100));}}
+ const sort=params.get('sort');const order=comparable&&sort==='price-up'?effectivePrice + ' ASC,p.id ASC':comparable&&sort==='price-down'?effectivePrice + ' DESC,p.id ASC':sort==='name'?'p.name ASC':'p.featured DESC,p.created_at DESC,p.name ASC';
  return all(`SELECT p.*,c.name AS category,c.code AS category_code,pr.name AS presentation,u.name AS unit_name,(SELECT media_id FROM product_image WHERE product_id=p.id AND deleted_at IS NULL ORDER BY position LIMIT 1) AS cover FROM product p JOIN category c ON c.id=p.category_id JOIN presentation pr ON pr.code=p.presentation_code JOIN commercial_unit u ON u.code=pr.commercial_unit ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY ${order}`, ...args);
 }
 export function projects(admin=false,hidden=false){return all(`SELECT pr.*,c.name AS city,s.name AS sector,(SELECT media_id FROM project_image WHERE project_id=pr.id AND deleted_at IS NULL ORDER BY position LIMIT 1) AS cover FROM project pr JOIN city c ON c.id=pr.city_id JOIN sector s ON s.id=pr.sector_id WHERE ${admin?(hidden?'pr.deleted_at IS NOT NULL':'pr.deleted_at IS NULL'):"pr.deleted_at IS NULL AND pr.state='published'"} ORDER BY pr.featured DESC,pr.name`);}
@@ -89,7 +91,8 @@ function seed(){
    run('INSERT OR IGNORE INTO product_image VALUES(?,?,?,?,NULL)',id,pick('project-',i%3),1,'Ambiente de referencia');
   });
   [['Torre El Poblado',1,2],['Residencia Nova',1,1],['Casa Entre Árboles',3,1],['Espacio Origen',2,3]].forEach((r,i)=>{const id=randomUUID();run('INSERT INTO project(id,sku,slug,name,description,city_id,sector_id,state,featured,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',id,'GE-PR00'+(i+1),['torre-el-poblado','residencia-nova','casa-entre-arboles','espacio-origen'][i],r[0],'Un ambiente que explora la relación entre la luz, las texturas y los materiales. Este proyecto es una referencia visual para revisar el sitio; no representa una obra acreditada de la empresa.',r[1],r[2],'published',1,now,now);run('INSERT INTO project_image VALUES(?,?,?,?,NULL)',id,pick('project-',i%4),0,String(r[0]));run('INSERT OR IGNORE INTO project_image VALUES(?,?,?,?,NULL)',id,pick('project-',(i+1)%4),1,'Detalle del ambiente');[ids[i],ids[(i+2)%8]].forEach((pid,n)=>run('INSERT INTO project_product VALUES(?,?,?,NULL)',id,pid,n));});
-  run('INSERT INTO site_settings(id,about_title,about_text,about_media_id) VALUES(1,?,?,?)','Superficies que dan vida a tus espacios.','En Gestión Esencial acompañamos la elección de pisos y superficies desde la asesoría hasta la instalación. Creemos en el valor del detalle y en materiales que dialogan con cada espacio. Trabajamos contigo para encontrar una solución coherente con las necesidades de tu proyecto.',pick('about'));
+  // Public directory contact, provisional and editable: see 05_CONTACTO_PUBLICO.md.
+  run('INSERT INTO site_settings(id,phone,about_title,about_text,about_media_id) VALUES(1,?,?,?,?)','+57 322 530 0497','Superficies que dan vida a tus espacios.','En Gestión Esencial acompañamos la elección de pisos y superficies desde la asesoría hasta la instalación. Creemos en el valor del detalle y en materiales que dialogan con cada espacio. Trabajamos contigo para encontrar una solución coherente con las necesidades de tu proyecto.',pick('about'));
   const slides=[['Espacios que se construyen desde el detalle.','INSTALACIÓN DE PISOS','Asesoría, materiales e instalación para proyectos que buscan calidad, precisión y acabados excepcionales.','Conoce nuestros productos','/catalogo'],['Materiales que transforman tu forma de habitar.','NUESTRO CATÁLOGO','Texturas y superficies para dar forma a cada idea. Encuentra el punto de partida de tu próximo proyecto.','Explorar el catálogo','/catalogo'],['Cada proyecto, una nueva posibilidad.','ESPACIOS CON CARÁCTER','Inspírate en los ambientes y descubre los materiales que hacen parte de cada espacio.','Descubrir proyectos','/proyectos']];
   slides.forEach((r,i)=>run('INSERT INTO slide(id,title,subtitle,description,button_text,button_href,media_id,position,active) VALUES(?,?,?,?,?,?,?,?,1)',i+1,...r,pick(i===0?'hero':'project-',i),i));
   [['Asesoramos.','Te acompañamos a elegir materiales que respondan a tu espacio y a tu proyecto.'],['Distribuimos.','Pisos y complementos en una selección pensada para diferentes necesidades.'],['Instalamos.','Cuidamos la preparación y cada detalle para que el resultado haga la diferencia.']].forEach((r,i)=>run('INSERT INTO service VALUES(?,?,?,?)',i+1,...r,i));
@@ -97,6 +100,12 @@ function seed(){
 }
 if(!one('SELECT 1 FROM schema_migration WHERE name=?','003_accounts')){
  transaction(()=>{db.exec(readFileSync(resolve('migrations/003_accounts.sql'),'utf8'));run('INSERT INTO schema_migration VALUES(?,?)','003_accounts',new Date().toISOString());});
+}
+if (!one('SELECT 1 FROM schema_migration WHERE name=?', '004_product_discounts')) {
+ transaction(() => {
+  db.exec(readFileSync(resolve('migrations/004_product_discounts.sql'), 'utf8'));
+  run('INSERT INTO schema_migration VALUES(?,?)', '004_product_discounts', new Date().toISOString());
+ });
 }
 seed();
 export default db;

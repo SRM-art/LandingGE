@@ -15,6 +15,10 @@ async function post(action,data,extra={}){return fetch(origin+'/admin/api/'+acti
 try{
  let ready=false;for(let i=0;i<100;i++){try{const r=await fetch(origin+'/');if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}check(ready,'Servidor de prueba disponible');
  for(const route of ['/','/catalogo','/catalogo?q=GE-001','/catalogo?category=pisos&presentation=CAJA&min=200000','/proyectos','/nosotros','/catalogo/aquatech-lvt-lucca','/proyectos/torre-el-poblado']){const r=await fetch(origin+route);check(r.ok,'Carga '+route);const html=await r.text();check(!html.includes('PROVEEDOR-DEMO'),'SKU externo ausente de '+route);}
+ const floorPage=await(await fetch(origin+'/catalogo/aquatech-lvt-lucca')).text();
+ check(floorPage.includes('data-floor-calculator'),'Simulador en piso por caja');
+ check(floorPage.includes('data-coverage="22400"'),'Cobertura real del producto en simulador');
+ for(const slug of ['porcelanato-social-white','ceramica-vermont-white','zocalo-roble-natural','pegante-para-porcelanato'])check(!(await(await fetch(origin+'/catalogo/'+slug)).text()).includes('data-floor-calculator'),'Simulador ausente de '+slug);
  check((await fetch(origin+'/admin/api/export')).status===401,'Exportación protegida');
  check((await fetch(origin+'/admin',{redirect:'manual'})).status===302,'Panel requiere sesión');
  const login=await post('auth/setup',{email:'owner@example.test',password:'Una frase segura para pruebas 1',confirmation:'Una frase segura para pruebas 1'});check(login.status===200,'Configuración local: '+login.status+' '+(await login.clone().text()).slice(0,200));cookie=login.headers.get('set-cookie').split(';')[0];
@@ -74,6 +78,15 @@ try{
  }
  const invalidUpload=new FormData();invalidUpload.append('file',new Blob(['<svg/>'],{type:'image/svg+xml'}),'archivo.svg');check((await fetch(origin+'/admin/api/upload',{method:'POST',headers:{Origin:origin,Cookie:cookie,'x-ge-admin':'1'},body:invalidUpload})).status===400,'Rechaza SVG no permitido');
  check((await fetch(origin+'/.local/catalog.sqlite')).status===404,'Base no expuesta');
+ const saleResponse=await post('product',{...payload,sku:'SALE-HTTP',discount_price:'80000'});check(saleResponse.ok,'Crear precio con descuento');const sale=await saleResponse.json();
+ const saleCatalog=await(await fetch(origin+'/catalogo?discount=1')).text();check(saleCatalog.includes(sale.slug),'Filtro incluye descuento');check(saleCatalog.includes('discount-medal'),'Medalla de descuento');check(saleCatalog.includes('20%'),'Porcentaje calculado');check(!saleCatalog.includes('/catalogo/aquatech-lvt-lucca'),'Filtro excluye precio normal');
+ const saleDetail=await(await fetch(origin+'/catalogo/'+sale.slug)).text();check(saleDetail.includes('80.000'),'Ficha usa precio de oferta');check(saleDetail.includes('40.000'),'Equivalente usa precio de oferta');
+ check((await(await fetch(origin+'/catalogo/'+sale.slug)).text()).includes('data-price="8000000"'),'Simulador usa precio de oferta');
+ const saleEditor=await(await fetch(origin+'/admin/productos/'+sale.id,{headers:{Cookie:cookie}})).text();check(saleEditor.includes('name="discount_price"'),'Editor contiene descuento');check(saleEditor.includes('value="80000"'),'Editor conserva descuento');
+ check((await post('product',{...payload,sku:'SALE-INVALID',discount_price:'100000'})).status===400,'Rechaza descuento igual al precio normal');
+ const saleExport=await(await fetch(origin+'/admin/api/export',{headers:{Cookie:cookie}})).json();const saleRow=saleExport.tables.product.find(row=>row.id===sale.id);
+ check((await post('product',{...payload,id:sale.id,sku:'SALE-HTTP',revision:saleRow.revision,price:'70000',discount_price:'0'})).ok,'Quitar oferta y reducir precio de forma atómica');
+ check(!(await(await fetch(origin+'/catalogo?discount=1')).text()).includes(sale.slug),'Quitar oferta elimina producto del filtro');
  await post('logout',{});check((await fetch(origin+'/admin/api/export',{headers:{Cookie:cookie}})).status===401,'Sesión revocada');
  console.log(checks+' comprobaciones HTTP correctas. Base y archivos de prueba aislados del sitio local.');
 }catch(e){console.error(output);throw e;}finally{child.kill();}
