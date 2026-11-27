@@ -1,0 +1,55 @@
+---
+import { categoryLevels, categoryPath } from '../domain/category-tree';
+import { categories } from '../server/db';
+
+interface Props { categoryId?: number }
+const {categoryId} = Astro.props;
+const branches = (await categories());
+const rows = branches.map(({id, name, parent_id}) => ({id, name, parent_id}));
+const path = categoryPath(branches, categoryId ?? null);
+const placeholders = ['Selecciona una categoría', 'Sin subcategoría', 'Sin criterio'];
+---
+<fieldset class="classification-picker" data-category-picker={JSON.stringify(rows)}>
+  <legend>Clasificación del catálogo</legend>
+  {categoryLevels.map((name, index) => {
+    const parentId = index === 0 ? null : path[index - 1]?.id;
+    const options = rows.filter(row => row.parent_id === parentId);
+    return <label hidden={index > 0 && !options.length}>
+      {name}{index > 0 && <small> · Opcional</small>}
+      <select data-category-level required={index === 0} disabled={index > 0 && !options.length}>
+        <option value="">{placeholders[index]}</option>
+        {options.map(row => <option value={row.id} selected={path[index]?.id === row.id}>{row.name}</option>)}
+      </select>
+    </label>;
+  })}
+  <input type="hidden" name="category_id" value={path.at(-1)?.id ?? ''}/>
+  <a href="/admin/categorias" target="_blank" rel="noopener">Gestionar categorías</a>
+</fieldset>
+<style>
+  .classification-picker { margin-bottom: 20px; }
+  legend { font-weight: 600; margin-bottom: 10px; }
+  label { margin-bottom: 10px; }
+  a { display: inline-block; font-size: 12px; text-decoration: underline; }
+</style>
+<script>
+  import type { Category } from '../domain/category-tree';
+
+  for (const picker of document.querySelectorAll<HTMLElement>('[data-category-picker]')) {
+    const rows: Pick<Category, 'id'|'name'|'parent_id'>[] = JSON.parse(picker.dataset.categoryPicker!);
+    const levels = Array.from(picker.querySelectorAll<HTMLSelectElement>('[data-category-level]'));
+    const target = picker.querySelector<HTMLInputElement>('[name="category_id"]')!;
+    picker.addEventListener('change', () => {
+      for (let index = 1; index < levels.length; index++) {
+        const field = levels[index];
+        const previous = field.value;
+        const parent = levels[index - 1].value;
+        const children = parent ? rows.filter(row => row.parent_id === Number(parent)) : [];
+        field.replaceChildren(field.options[0], ...children.map(child => new Option(child.name, String(child.id))));
+        field.value = children.some(child => String(child.id) === previous) ? previous : '';
+        field.disabled = children.length === 0;
+        field.closest('label')!.hidden = field.disabled;
+      }
+      target.value = levels.findLast(level => level.value)?.value ?? '';
+    });
+  }
+</script>

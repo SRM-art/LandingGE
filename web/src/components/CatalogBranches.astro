@@ -1,0 +1,31 @@
+---
+import type { Category } from '../domain/category-tree';
+
+interface Props {
+  categories: Category[];
+  parentId?: number | null;
+  selectedPath: Category[];
+  linkTo: (code?: string) => string;
+}
+
+const {categories, parentId = null, selectedPath, linkTo} = Astro.props;
+const branches = categories.filter(category => category.parent_id === parentId);
+const current = selectedPath.at(-1);
+---
+{branches.length > 0 && <ul class="catalog-branches">
+  {branches.map(branch => {
+    const selected = current?.id === branch.id;
+    const expanded = selectedPath.some(category => category.id === branch.id);
+    return <li>
+      <a href={linkTo(branch.code)} aria-current={selected ? 'page' : undefined} class:list={{expanded}}>{branch.name}</a>
+      {expanded && <Astro.self categories={categories} parentId={branch.id} selectedPath={selectedPath} linkTo={linkTo}/>}
+    </li>;
+  })}
+</ul>}
+<style>
+  .catalog-branches { list-style: none; margin: 0; padding: 0; }
+  .catalog-branches .catalog-branches { margin: 2px 0 8px 12px; border-left: 1px solid var(--line); padding-left: 8px; }
+  a { display: block; border-radius: 5px; padding: 9px 10px; font-size: 15px; overflow-wrap: anywhere; }
+  a:hover, a.expanded { background: var(--paper); }
+  a[aria-current] { background: var(--navy); color: white; }
+</style>

@@ -1,6 +1,6 @@
 import {decimalScaled} from './pricing.ts';
-export function isFloorByBox(product: {category_code?: string; presentation_code?: string}) {
-  return product.category_code === 'pisos' && product.presentation_code === 'CAJA';
+export function isFloorByBox(product: {is_floor?: boolean | number; presentation_code?: string}) {
+  return (product.is_floor === true || product.is_floor === 1) && product.presentation_code === 'CAJA';
 }
 export function estimateFloor(area: string, waste: number, coverageScaled: number, priceCents: number | null) {
   const areaScaled = decimalScaled(area, 10000);

@@ -1,0 +1,50 @@
+---
+import type { CategoryProduct } from '../server/categories';
+
+interface Props {
+  products: CategoryProduct[];
+  listId: string;
+}
+
+const {products, listId} = Astro.props;
+const previewCount = 5;
+const remaining = products.length - previewCount;
+---
+<div class="category-products" data-category-products>
+  <p>{products.length} {products.length === 1 ? 'producto afectado' : 'productos afectados'}</p>
+  <ul id={listId}>
+    {products.map((product, index) => <li hidden={index >= previewCount} data-overflow-product={index >= previewCount ? '' : undefined}>
+      <a href={'/admin/productos/'+product.id}>{product.name}</a>
+      <small>{product.sku}{product.deleted_at ? ' · Oculto' : product.state === 'draft' ? ' · Borrador' : ''}</small>
+    </li>)}
+  </ul>
+  {remaining > 0 && <button type="button" class="more-products" data-toggle-products aria-controls={listId} aria-expanded="false" aria-label={`Mostrar ${remaining} productos más`}>
+    <span aria-hidden="true">…</span><span data-product-count>{remaining} más</span>
+  </button>}
+</div>
+<style>
+  .category-products { font-size: 13px; }
+  ul { padding-inline-start: 20px; margin-block: 6px; }
+  li { margin-block: 3px; }
+  a { text-decoration: underline; }
+  small { margin-inline-start: 4px; }
+  .more-products { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 2px 8px; border-radius: 5px; color: var(--blue); background: var(--paper); cursor: pointer; }
+  .more-products > :first-child { font-size: 18px; line-height: 1; }
+</style>
+<script>
+  for (const list of document.querySelectorAll<HTMLElement>('[data-category-products]')) {
+    const button = list.querySelector<HTMLButtonElement>('[data-toggle-products]');
+    if (!button) continue;
+    const overflow = list.querySelectorAll<HTMLElement>('[data-overflow-product]');
+    const label = button.querySelector<HTMLElement>('[data-product-count]')!;
+    const expandText = button.getAttribute('aria-label')!;
+    button.addEventListener('click', () => {
+      const expanded = button.getAttribute('aria-expanded') !== 'true';
+      for (const product of overflow) product.hidden = !expanded;
+      button.setAttribute('aria-expanded', String(expanded));
+      button.setAttribute('aria-label', expanded ? 'Mostrar solo los primeros 5 productos' : expandText);
+      label.textContent = expanded ? 'Ver solo 5' : `${overflow.length} más`;
+      if (!expanded) button.scrollIntoView({block: 'nearest'});
+    });
+  }
+</script>

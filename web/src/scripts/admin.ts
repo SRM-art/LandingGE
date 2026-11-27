@@ -1,3 +1,4 @@
+import {specializedSelects} from '../domain/product-attributes';
 import {formatCopInput,plainCopInput} from '../domain/cop-input';
 import {decimalScaled,equivalent,money,parseDiscountPrice,productPricing} from '../domain/pricing';
 type Img={id:string,alt:string};const galleries=new Map<string,Img[]>();
@@ -20,9 +21,43 @@ document.querySelectorAll<HTMLElement>('[data-image-editor]').forEach(root=>{con
  input.addEventListener('change',async()=>{const files=Array.from(input.files||[]);input.disabled=true;document.querySelectorAll<HTMLButtonElement>('[data-save]').forEach(b=>b.disabled=true);try{for(const file of files){if(!single&&images.length>=20)throw new Error('La galería admite hasta 20 imágenes.');if(file.size>10*1024*1024)throw new Error(file.name+' excede los 10 MB.');status.textContent='Cargando '+file.name+'…';const body=new FormData();body.append('file',file);const r=await fetch('/admin/api/upload',{method:'POST',headers:{'x-ge-admin':'1'},body});const result=await r.json();if(!r.ok)throw new Error(result.error||'No se pudo cargar la imagen.');if(single)images.splice(0,images.length);images.push({id:result.id,alt:file.name.replace(/\.[^.]+$/,'')});render();}status.textContent='Imagen cargada. Guarda el formulario para aplicar el cambio.';}catch(e){status.textContent=(e as Error).message;}finally{input.disabled=false;input.value='';document.querySelectorAll<HTMLButtonElement>('[data-save]').forEach(b=>b.disabled=false);}});
 });
 function val(f:FormData,name:string){return String(f.get(name)||'').trim();}
-function bindForm(selector:string,getPayload:(f:FormData,form:HTMLFormElement)=>unknown,action:string){const form=document.querySelector<HTMLFormElement>(selector);if(!form)return;let dirty=false;form.addEventListener('input',()=>dirty=true);window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();}});form.addEventListener('submit',async e=>{e.preventDefault();const button=form.querySelector<HTMLButtonElement>('[data-save]')!;const status=form.querySelector<HTMLElement>('[data-form-status]')!;button.disabled=true;status.classList.remove('error');status.textContent='Guardando…';try{const result=await api(action,getPayload(new FormData(form),form));dirty=false;status.textContent='Cambios guardados.';if(action==='content'){form.dataset.revision=String(Number(form.dataset.revision)+1);toast('Contenido actualizado.');}else if(action==='slide'){location.href='/admin/contenidos?saved=1#diapositivas-adicionales';}else{location.href='/admin/'+(action==='product'?'productos':'proyectos')+'/'+result.id+'?saved=1';}}catch(e){status.classList.add('error');status.textContent=(e as Error).message;}finally{button.disabled=false;}});}
-const record=document.querySelector<HTMLFormElement>('[data-record-form]');if(record){const kind=record.dataset.kind!;bindForm('[data-record-form]',(f,form)=>{const data:any={...(form.dataset.id?{id:form.dataset.id,revision:Number(form.dataset.revision)}:{}),sku:val(f,'sku'),name:val(f,'name'),description:val(f,'description'),state:val(f,'state')||'draft',featured:f.has('featured'),images:galleries.get('images')||[]};if(kind==='product'){Object.assign(data,{category_id:Number(val(f,'category_id')),presentation_code:val(f,'presentation_code'),price:plainCopInput(val(f,'price')),discount_price:plainCopInput(val(f,'discount_price')),external_sku:val(f,'external_sku'),measures:['M2','KG','ML','PIEZA'].map(code=>({code,value:val(f,'measure_'+code)})),facets:f.getAll('facets').map(Number),sheet:Object.fromEntries(['length_mm','width_mm','thickness_mm','warranty','recommendations','advantages'].map(k=>[k,val(f,'sheet_'+k)]))});}else Object.assign(data,{city_id:Number(val(f,'city_id')),sector_id:Number(val(f,'sector_id')),product_ids:f.getAll('product_ids')});return data;},kind);}
-bindForm('[data-content-form]',(f,form)=>({...Object.fromEntries(['whatsapp','phone','email','address','hours','about_title','about_text'].map(k=>[k,val(f,k)])),revision:Number(form.dataset.revision),about_media_id:galleries.get('about_image')?.[0]?.id||null,slides:Array.from(form.querySelectorAll<HTMLElement>('[data-slide-editor]')).map(el=>{const id=Number(el.dataset.slideId);const prefix='slide_'+id+'_';return {id,...Object.fromEntries(['title','subtitle','description','button_text','button_href'].map(k=>[k,val(f,prefix+k)])),media_id:galleries.get(prefix+'image')?.[0]?.id||'',active:true};}),services:Array.from(form.querySelectorAll<HTMLElement>('[data-service-editor]')).map(el=>{const id=Number(el.dataset.serviceId);return {id,title:val(f,'service_'+id+'_title'),description:val(f,'service_'+id+'_description')};})}),'content');
+function bindForm(selector:string,getPayload:(f:FormData,form:HTMLFormElement)=>unknown,action:string){const form=document.querySelector<HTMLFormElement>(selector);if(!form)return;let dirty=false;form.addEventListener('input',()=>dirty=true);window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();}});form.addEventListener('submit',async e=>{e.preventDefault();const button=form.querySelector<HTMLButtonElement>('[data-save]')!;const status=form.querySelector<HTMLElement>('[data-form-status]')!;button.disabled=true;status.classList.remove('error');status.textContent='Guardando…';try{const result=await api(action,getPayload(new FormData(form),form));dirty=false;status.textContent='Cambios guardados.';if(action==='content'){form.dataset.revision=String(Number(form.dataset.revision)+1);toast('Contenido actualizado.');}else if(action==='city'){location.reload();}else if(action==='category'){location.href='/admin/categorias?saved=1&rama='+result.id;}else if(action==='slide'){location.href='/admin/contenidos?saved=1#diapositivas-adicionales';}else{location.href='/admin/'+(action==='product'?'productos':'proyectos')+'/'+result.id+'?saved=1';}}catch(e){status.classList.add('error');status.textContent=(e as Error).message;}finally{button.disabled=false;}});}
+bindForm('[data-city-form]', fields => ({action:'create', name:val(fields,'name')}), 'city');
+bindForm('[data-category-form]', (fields, form) => {
+ const parent = val(fields,'parent_id');
+ return {
+  ...(form.dataset.id ? {action:'edit', id:Number(form.dataset.id)} : {action:'create'}),
+  name:val(fields,'name'), parent_id:parent ? Number(parent) : null, position:Number(val(fields,'position')),
+ };
+}, 'category');
+document.querySelectorAll<HTMLButtonElement>('[data-category-action]').forEach(button => {
+ button.addEventListener('click', async () => {
+  const action = button.dataset.categoryAction;
+  if (action === 'hide' && !confirm('¿Retirar esta clasificación del catálogo? Podrás restaurarla desde el administrador.')) return;
+  button.disabled = true;
+  try {
+   await api('category', {action, id:Number(button.value)});
+   location.href = '/admin/categorias?saved=1';
+  } catch (error) {
+   toast((error as Error).message);
+   button.disabled = false;
+  }
+ });
+});
+document.querySelectorAll<HTMLButtonElement>('[data-city-action]').forEach(button => {
+ button.addEventListener('click', async () => {
+  button.disabled = true;
+  try {
+   await api('city', {action: button.dataset.cityAction, id: Number(button.value)});
+   location.reload();
+  } catch (error) {
+   toast((error as Error).message);
+   button.disabled = false;
+  }
+ });
+});
+const record=document.querySelector<HTMLFormElement>('[data-record-form]');if(record){const kind=record.dataset.kind!;bindForm('[data-record-form]',(f,form)=>{const data:any={...(form.dataset.id?{id:form.dataset.id,revision:Number(form.dataset.revision)}:{}),sku:val(f,'sku'),name:val(f,'name'),description:val(f,'description'),state:val(f,'state')||'draft',featured:f.has('featured'),images:galleries.get('images')||[]};if(kind==='product'){Object.assign(data,{category_id:Number(val(f,'category_id')),is_floor:f.has('is_floor'),tone:val(f,'tone')||null,...(f.has('environment')?{environment:val(f,'environment')||null}:{}),slip_resistant:f.has('slip_resistant'),...Object.fromEntries(specializedSelects.filter(({key})=>f.has(key)).map(({key})=>[key,val(f,key)||null])),adhesive_materials:f.getAll('adhesive_materials'),overlay:f.has('overlay'),presentation_code:val(f,'presentation_code'),price:plainCopInput(val(f,'price')),discount_price:plainCopInput(val(f,'discount_price')),external_sku:val(f,'external_sku'),measures:['M2','KG','ML','PIEZA'].map(code=>({code,value:val(f,'measure_'+code)}))});}else Object.assign(data,{city_id:Number(val(f,'city_id')),sector_id:Number(val(f,'sector_id')),product_ids:f.getAll('product_ids')});return data;},kind);}
+bindForm('[data-content-form]',(f,form)=>({...Object.fromEntries(['whatsapp','phone','email','address','hours','about_title','about_text'].map(k=>[k,val(f,k)])),revision:Number(form.dataset.revision),about_media_id:galleries.get('about_image')?.[0]?.id||null,slides:Array.from(form.querySelectorAll<HTMLElement>('[data-slide-editor]')).map(el=>{const id=Number(el.dataset.slideId);const prefix='slide_'+id+'_';return {id,...Object.fromEntries(['title','subtitle','description','button_text','button_href'].map(k=>[k,val(f,prefix+k)])),media_id:galleries.get(prefix+'image')?.[0]?.id||'',active:f.has(prefix+'active')};}),services:Array.from(form.querySelectorAll<HTMLElement>('[data-service-editor]')).map(el=>{const id=Number(el.dataset.serviceId);return {id,title:val(f,'service_'+id+'_title'),description:val(f,'service_'+id+'_description')};})}),'content');
 function updatePrice() {
  const output = document.querySelector<HTMLElement>('[data-price-preview]');
  const discountOutput = document.querySelector<HTMLElement>('[data-discount-preview]');

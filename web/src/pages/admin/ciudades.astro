@@ -1,0 +1,41 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import {all} from '../../server/db';
+const cities = (await all(`SELECT c.id, c.name, c.deleted_at, COUNT(p.id) AS project_count
+  FROM city c LEFT JOIN project p ON p.city_id=c.id
+  GROUP BY c.id ORDER BY c.deleted_at IS NOT NULL, c.name`));
+---
+<AdminLayout title="Ciudades">
+  <div class="admin-heading">
+    <div><h1>Ciudades</h1><p>Agrega las ciudades que necesites para tus proyectos.</p></div>
+    <a href="/admin/proyectos" class="button outline">Ver proyectos</a>
+  </div>
+  <section class="panel">
+    <h2>Agregar ciudad</h2>
+    <form data-city-form>
+      <label>Nombre de la ciudad<input name="name" required maxlength="100" placeholder="Ej. Envigado"/></label>
+      <button class="button primary" type="submit" data-save>Agregar ciudad</button>
+      <p class="form-status" data-form-status role="status"></p>
+    </form>
+  </section>
+  <section class="panel">
+    <h2>Ciudades registradas</h2>
+    <p class="hint">Al retirar una ciudad, deja de estar disponible para asignar. Los proyectos que ya la usan conservan su ciudad visible.</p>
+    <div class="table-scroll">
+      <table class="admin-table">
+        <thead><tr><th scope="col">Ciudad</th><th scope="col">Proyectos</th><th scope="col">Estado</th><th scope="col">Acción</th></tr></thead>
+        <tbody>{cities.map(city=><tr>
+          <td>{city.name}</td><td>{city.project_count}</td>
+          <td>{city.deleted_at ? 'Retirada' : 'Disponible'}</td>
+          <td><button type="button" class="button outline" value={city.id} data-city-action={city.deleted_at ? 'restore' : 'hide'}
+            aria-label={city.deleted_at ? 'Restaurar '+city.name : 'Retirar '+city.name}>{city.deleted_at ? 'Restaurar' : 'Retirar'}</button></td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+  </section>
+</AdminLayout>
+<style>
+  form input { max-width: 400px; }
+  form .button { margin-top: 15px; }
+  td .button { min-height: 34px; padding: 6px 14px; font-size: 12px; }
+</style>

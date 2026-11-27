@@ -1,3 +1,6 @@
+export const additionalSlideLimit = 5;
+export const additionalSlidesFullMessage = `Ya tienes ${additionalSlideLimit} tarjetas adicionales. Para agregar o restaurar otra, quita una de las existentes.`;
+
 export const carouselLimits = {
   subtitle: 32,
   title: 60,

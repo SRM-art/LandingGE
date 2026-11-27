@@ -1,8 +1,13 @@
 # LandingGE — Gestión Esencial
 
-Versión local para revisión del equipo. Landing de la empresa y catálogo de productos y proyectos con consultas por WhatsApp. Estado actualizado el 14 de noviembre de 2026.
+Sitio corporativo y catálogo de Gestión Esencial, con proyectos y consultas por WhatsApp. El mismo código permite ejecutar una versión local y compilar una versión para Cloudflare.
 
-## Ejecutar una copia recién descargada
+| Entorno | Cómo se ejecuta | Datos y correo |
+| --- | --- | --- |
+| **Local** | `npm run dev`, desde `web/`. Sitio y panel en `127.0.0.1:4321`. | Node.js, SQLite, archivos locales y buzón simulado. |
+| **Cloudflare** | `npm run deploy:cloudflare -- --dry-run` valida la compilación. La publicación usa `npm run deploy:cloudflare` después de configurar el entorno. | Workers, D1, R2, Cloudflare Images y Resend. Cada entorno tiene su base de datos y almacenamiento propios. |
+
+## Versión local
 
 Requisitos: Git, Node.js 24 o superior compatible y npm. Desde la raíz del repositorio:
 
@@ -18,21 +23,21 @@ Al iniciar, se copian las imágenes de `web/demo-assets/` a la carpeta de trabaj
 
 La primera entrada al administrador permite configurar el correo y la contraseña del propietario. Elige una contraseña de 15 a 128 caracteres. El propietario puede invitar administradores, desactivarlos, restaurarlos y cerrar sesiones. Cada usuario puede gestionar su contraseña, correo y sesiones propias.
 
-Para probar invitaciones y recuperación, abre [el buzón simulado](http://127.0.0.1:4321/admin/correo-local). Los mensajes permanecen en este equipo. El buzón es accesible sin sesión para permitir las pruebas de recuperación y permite usar los enlaces de las cuentas locales. Se debe retirar antes de cualquier exposición pública.
+Para probar invitaciones y recuperación, abre [el buzón simulado](http://127.0.0.1:4321/admin/correo-local). Los mensajes permanecen en este equipo. El buzón local permite probar invitaciones y recuperación sin iniciar sesión. La configuración Docker de revisión protege ese acceso en el proxy y la versión Cloudflare deshabilita el buzón.
 
 En Windows, después de `npm ci`, también puedes usar `INICIAR_LOCAL.cmd` desde la raíz.
 
 ## Funciones disponibles
 
 - Landing editable, navegación fija en escritorio y carrusel de imágenes cada 9 segundos, con tres slides base, slides adicionales, flechas y gestos táctiles.
-- Catálogo con filtros, ordenamiento y páginas de 20 productos.
-- Productos con precio final en COP por presentación completa, equivalencias informativas, imágenes, ficha técnica y SKU interno público. El SKU externo es privado y opcional.
+- Catálogo con navegación lateral por categoría, subcategoría y criterio. En **Administrador → Categorías** puedes editar, mover, ordenar, retirar y restaurar ramas. El editor de productos permite asignar una referencia a cualquiera de los tres niveles. La búsqueda, las ofertas y la paginación de 20 productos funcionan dentro de la rama elegida.
+- Productos con precio final en COP por presentación completa, equivalencias informativas, imágenes, descripción y SKU interno público. El SKU externo es privado y opcional.
 - Precio de oferta opcional: 0 desactiva el descuento; otro valor representa el precio final de oferta, inferior al normal. Porcentaje calculado automáticamente, medalla, precio anterior tachado y filtro de ofertas.
 - Campos de precio del administrador con formato visual `$ 1.234.567`; el formato se retira antes de enviar los valores al servidor.
 - Carrusel de hasta 8 productos en inicio: mayores porcentajes de descuento y, para completar, productos sin descuento de menor precio. Avanza un producto cada 6 segundos, con puntos, flechas y desplazamiento táctil.
-- Simulador de compra en modal, disponible exclusivamente para la categoría `pisos` vendida por `CAJA`: área, excedente ajustable con 10 % inicial, cajas completas redondeadas hacia arriba, cobertura, total estimado y consulta por WhatsApp.
+- Simulador de compra en modal para productos marcados como aptos para piso, vendidos por caja y con cobertura en m². Calcula las cajas completas con un excedente ajustable de 10 % inicial, el total estimado y la consulta por WhatsApp.
 - Proyectos con referencia, ciudad, imágenes y productos utilizados. El recorrido comercial conduce del proyecto al producto y a WhatsApp.
-- Administración de contenido, roles propietario/administrador, sesiones revocables y recuperación simulada.
+- Administración de contenido, roles propietario/administrador, sesiones revocables y recuperación por correo simulado en local y mediante Resend en Cloudflare.
 - Ocultación y restauración de registros, bitácora de contenido y exportación privada.
 
 Los productos, proyectos, precios y fotografías iniciales son referenciales. El número de WhatsApp se configura en el panel. Revisa contenido, derechos de uso y datos de contacto antes de publicar.
@@ -73,6 +78,8 @@ La aplicación usa Astro 7, TypeScript, CSS, Zod y Sharp. El servidor local usa 
 | `web/src/scripts/` | Interacción en el navegador |
 | `web/src/server/` | Datos, validación, autenticación y operaciones |
 | `web/migrations/` | Esquema y migraciones de SQLite |
+| `web/migrations-cloudflare/` | Esquema de D1 para Cloudflare |
+| `web/astro.cloudflare.config.mjs`, `web/wrangler.jsonc` | Compilación y recursos de Cloudflare |
 | `web/demo-assets/` | Recursos referenciales para inicializar un clon |
 | `web/public/brand/` | Marca utilizada por la interfaz |
 | `web/tests/`, `web/scripts/` | Pruebas y herramientas locales |
@@ -106,16 +113,17 @@ Git excluye bases de datos, cuentas, sesiones, buzón simulado, imágenes cargad
 
 Evita agregar con `git add -f` archivos ignorados. Usa `npm ci` para respetar `package-lock.json`. Trabaja en ramas por cambio y revisa las diferencias antes de integrarlas. Las credenciales y cuentas de infraestructura se configuran por canales privados.
 
-## Pendiente antes de producción
+## Versión de despliegue en Cloudflare
 
-1. Validar el adaptador de Astro y la autenticación en Cloudflare Workers/D1, incluyendo consumo de CPU y consistencia de la revocación de sesiones.
-2. Conectar almacenamiento R2 y procesamiento de imágenes. La versión actual guarda los archivos en disco local y utiliza Sharp.
-3. Sustituir el buzón y el alta visual de prueba por correo transaccional real y alta privada del propietario. Eliminar las rutas de prueba de la versión pública.
-4. Configurar dominio canónico, HTTPS, cookies seguras, secretos por entorno, protección de rutas y límites distribuidos de intentos.
-5. Completar revisión de contraseñas comprometidas, retención de datos técnicos, alertas, copias remotas y ensayo de restauración.
-6. Verificar el contenido real, permisos de los recursos de marca e imágenes y costos vigentes de los servicios.
+Desde `web/`, instala las dependencias con `npm ci` y ejecuta la compilación de verificación sin publicar:
 
-La autenticación local usa scrypt nativo de Node, cookies y sesiones en SQLite. Better Auth permanece como candidato para evaluación de producción. Cloudflare Access queda como opción para entornos internos de prueba. Un despliegue de producción requiere los ajustes anteriores. La demostración temporal aislada utiliza el proxy y las restricciones de la guía de Docker.
+```sh
+npm run deploy:cloudflare -- --dry-run
+```
+
+El visitante entra por la portada y el administrador accede directamente por `/admin`. Cloudflare usa la misma aplicación para ambas vistas. El panel exige una sesión válida y la barra de acceso rápido existe en la vista local.
+
+Sigue la [guía de despliegue paso a paso](09_DESPLIEGUE_CLOUDFLARE.md) para habilitar la facturación, configurar Worker, D1, R2 y Resend, e importar el catálogo. Primero publica en un entorno de pruebas y verifica el inicio de sesión y la entrega de correos. Luego configura el dominio y habilita la indexación después de revisar el contenido público. La guía también explica cómo preparar y validar localmente el paquete antes de importarlo.
 
 ## Documentación
 

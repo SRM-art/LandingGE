@@ -1,0 +1,52 @@
+---
+import CategoryProducts from './CategoryProducts.astro';
+import { categoryLevels, type Category } from '../domain/category-tree';
+import type { CategoryProduct } from '../server/categories';
+
+interface Props {
+  rows: Category[];
+  usage: Map<number, CategoryProduct[]>;
+  parentId?: number | null;
+  level?: number;
+  openPath: number[];
+}
+
+const {rows, usage, parentId = null, level = 0, openPath} = Astro.props;
+---
+<ul class:list={['category-branches', {nested: level > 0}]}>
+  {rows.filter(row => row.parent_id === parentId).map(row => {
+    const affected = usage.get(row.id);
+    const hasChildren = rows.some(child => child.parent_id === row.id);
+    const blocked = Boolean(affected || hasChildren);
+    const reasonId = `retirement-reason-${row.id}`;
+    return <li data-category-row={row.id}>
+      <details name={'admin-category-level-' + level} open={openPath.includes(row.id)}>
+        <summary><strong>{row.name}</strong><small>{categoryLevels[level]}</small></summary>
+        <div class="branch-content">
+          <div class="row-actions">
+            <a href={'?editar=' + row.id + '#editor-categoria'}>Editar</a>
+            {level + 1 < categoryLevels.length && <a href={'?padre=' + row.id + '#editor-categoria'}>Agregar {categoryLevels[level + 1].toLowerCase()}</a>}
+            <button type="button" value={row.id} disabled={blocked} data-category-action={blocked ? undefined : 'hide'} aria-describedby={blocked ? reasonId : undefined}>Retirar</button>
+          </div>
+          {blocked && <p class="retirement-note" id={reasonId}>{affected
+            ? 'No se puede retirar mientras esté en uso. Reasigna los productos vinculados.'
+            : 'Para retirarla, mueve o retira primero sus ramas activas.'}</p>}
+          {affected && <CategoryProducts products={affected} listId={'branch-products-' + row.id}/>}
+          {hasChildren && <Astro.self rows={rows} usage={usage} parentId={row.id} level={level + 1} openPath={openPath}/>}
+        </div>
+      </details>
+    </li>;
+  })}
+</ul>
+<style>
+  .category-branches { padding: 0; list-style: none; }
+  .nested { margin-top: 12px; border-inline-start: 1px solid var(--line); padding-inline-start: 14px; }
+  li { border-top: 1px solid var(--line); }
+  summary { cursor: pointer; padding: 12px 5px; overflow-wrap: anywhere; }
+  summary:hover { background: var(--paper); }
+  summary small { margin-inline-start: 10px; }
+  .branch-content { padding: 0 5px 12px 16px; }
+  .row-actions { flex-wrap: wrap; font-size: 13px; }
+  .row-actions button:disabled { color: var(--muted); text-decoration: none; cursor: default; }
+  .retirement-note { font-size: 12px; margin-block: 5px; }
+</style>

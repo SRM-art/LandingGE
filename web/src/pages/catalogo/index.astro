@@ -1,14 +1,93 @@
 ---
-import SiteLayout from '../../layouts/SiteLayout.astro';import ProductCard from '../../components/ProductCard.astro';import Icon from '../../components/Icon.astro';import {products,options,all} from '../../server/db';
-const q = Astro.url.searchParams;
-const rows = products(q);
-const o = options();
+import CatalogBranches from '../../components/CatalogBranches.astro';
+import ProductCard from '../../components/ProductCard.astro';
+import { categoryPath } from '../../domain/category-tree';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import { categories, products } from '../../server/db';
+
+const incoming = Astro.url.searchParams;
+const q = new URLSearchParams();
+const search = incoming.get('q')?.trim().slice(0, 100);
+if (search) q.set('q', search);
+if (incoming.get('discount') === '1') q.set('discount', '1');
+if (incoming.get('sort') === 'name') q.set('sort', 'name');
+const branches = (await categories());
+const requestedBranch = incoming.get('rama') || incoming.get('category')
+  || (incoming.has('group') ? 'catalogo-' + incoming.get('group') : null);
+const selected = branches.find(branch => branch.code === requestedBranch);
+const selectedPath = categoryPath(branches, selected?.id ?? null);
+if (selected) q.set('rama', selected.code);
+
+function catalogLink(code?: string, page?: number, clear = false) {
+  const params = clear ? new URLSearchParams() : new URLSearchParams(q);
+  params.delete('rama');
+  if (code) params.set('rama', code);
+  if (page && page > 1) params.set('page', String(page));
+  return '/catalogo' + (params.size ? '?' + params : '');
+}
+
+const rows = (await products(q));
 const pageSize = 20;
 const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
-const requestedPage = Number(q.get('page'));
-const validPage = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-const page = Math.min(pageCount, validPage);
+const requestedPage = Number(incoming.get('page'));
+const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? Math.min(pageCount, requestedPage) : 1;
 const visible = rows.slice((page - 1) * pageSize, page * pageSize);
-const comparable=!!q.get('category')&&!!q.get('presentation');const sizes=all("SELECT DISTINCT length_mm || 'x' || width_mm AS value FROM technical_sheet WHERE length_mm!='' AND width_mm!=''");
 ---
-<SiteLayout title="Catálogo"><section class="page-intro"><p class="eyebrow">EXPLORA NUESTRA SELECCIÓN</p><h1>Encuentra la esencia<br/><em>de tu próximo espacio.</em></h1><p>Pisos, texturas y complementos que dan forma a tus ideas.</p></section><section class="catalog-shell section"><button class="button outline mobile-filter" data-filter-toggle>Mostrar filtros</button><aside class="filters"><form action="/catalogo"><div class="filter-heading"><h2>Filtrar por</h2><a href="/catalogo">Limpiar</a></div><label>Buscar<input name="q" value={q.get('q')||''} placeholder="Nombre o referencia"/></label><label>Categoría<select name="category"><option value="">Todos los productos</option>{o.categories.map(c=><option value={c.code} selected={q.get('category')===c.code}>{c.name}</option>)}</select></label><label>Presentación<select name="presentation"><option value="">Todas</option>{o.presentations.map(p=><option value={p.code} selected={q.get('presentation')===p.code}>{p.name}</option>)}</select></label>{[['color','Color'],['finish','Acabado'],['use','Uso'],['area','Área']].map(([type,label])=><label>{label}<select name={type}><option value="">Todos</option>{o.facets.filter(f=>f.type===type).map(f=><option value={f.id} selected={q.get(type)===String(f.id)}>{f.name}</option>)}</select></label>)}<label>Formato (mm)<select name="size"><option value="">Todos</option>{sizes.map(s=><option selected={q.get('size')===s.value} value={s.value}>{s.value.replace('x',' × ')}</option>)}</select></label><fieldset disabled={!comparable}><legend>Precio final por presentación</legend><div class="field-pair"><input aria-label="Precio mínimo" name="min" type="number" min="0" placeholder="Desde" value={q.get('min')||''}/><input aria-label="Precio máximo" name="max" type="number" min="0" placeholder="Hasta" value={q.get('max')||''}/></div></fieldset>{!comparable&&<p class="hint">Selecciona categoría y presentación, y aplica los filtros para comparar precios equivalentes.</p>}<label class="discount-filter"><input type="checkbox" name="discount" value="1" checked={q.get('discount')==='1'}/>Mostrar solo productos con descuento</label><label>Ordenar por<select name="sort"><option value="featured">Destacados</option><option value="name" selected={q.get('sort')==='name'}>Nombre</option>{comparable&&<><option value="price-up" selected={q.get('sort')==='price-up'}>Menor precio</option><option value="price-down" selected={q.get('sort')==='price-down'}>Mayor precio</option></>}</select></label><button class="button primary full">Aplicar filtros<Icon name="arrow" size={18}/></button></form></aside><div class="catalog-results"><div class="results-heading"><p><strong>{rows.length}</strong> productos {q.get('q')&&<>para “{q.get('q')}”</>}</p><span>Precios finales en COP</span></div><div class="product-grid">{visible.map(p=><ProductCard p={p}/>)}</div>{!rows.length&&<div class="empty-state"><h2>Aún no encontramos esa combinación.</h2><p>Prueba con otra referencia o amplía los filtros.</p><a href="/catalogo" class="button primary">Ver todo el catálogo</a></div>}{pageCount>1&&<nav class="pagination" aria-label="Páginas">{Array.from({length:pageCount},(_,i)=>{const params=new URLSearchParams(q);params.set('page',String(i+1));return <a href={'?'+params} aria-current={page===i+1?'page':undefined}>{i+1}</a>})}</nav>}</div></section></SiteLayout>
+<SiteLayout title="Catálogo">
+  <section class="page-intro">
+    <p class="eyebrow">EXPLORA NUESTRA SELECCIÓN</p>
+    <h1>Encuentra la esencia<br/><em>de tu próximo espacio.</em></h1>
+    <p>Pisos, texturas y complementos que dan forma a tus ideas.</p>
+  </section>
+  <section class="section catalog-browse">
+    <aside class="catalog-sidebar">
+      <details open>
+        <summary>Categorías</summary>
+        <nav aria-label="Categorías del catálogo">
+          <a class="all-categories" href={catalogLink()} aria-current={!selected ? 'page' : undefined}>Todos los productos</a>
+          <CatalogBranches categories={branches} selectedPath={selectedPath} linkTo={catalogLink}/>
+        </nav>
+      </details>
+    </aside>
+    <div class="catalog-results">
+      {selected && <nav class="category-path" aria-label="Ruta de la categoría">
+        <a href={catalogLink()}>Catálogo</a>
+        {selectedPath.map(item => <><span aria-hidden="true">/</span>{item.id === selected.id
+          ? <span aria-current="page">{item.name}</span> : <a href={catalogLink(item.code)}>{item.name}</a>}</>)}
+      </nav>}
+      <form class="catalog-tools" action="/catalogo">
+        {selected && <input type="hidden" name="rama" value={selected.code}/>}
+        <label>Buscar<input name="q" value={search ?? ''} placeholder="Nombre o referencia" maxlength="100"/></label>
+        <label>Ordenar por<select name="sort"><option value="featured">Destacados</option><option value="name" selected={q.get('sort') === 'name'}>Nombre</option></select></label>
+        <label class="catalog-discount"><input type="checkbox" name="discount" value="1" checked={q.has('discount')}/>Solo ofertas</label>
+        <button class="button primary" type="submit">Aplicar</button>
+        {(search || q.has('discount') || q.has('sort')) && <a href={catalogLink(selected?.code, 1, true)}>Limpiar filtros</a>}
+      </form>
+      <div class="results-heading"><p><strong>{rows.length}</strong> {rows.length === 1 ? 'producto' : 'productos'}</p><span>Precios finales en COP</span></div>
+      <div class="product-grid">{visible.map(p => <ProductCard p={p}/>)}</div>
+      {!rows.length && <div class="empty-state"><h2>No encontramos productos.</h2><p>Prueba con otra categoría o cambia la búsqueda.</p><a href="/catalogo" class="button primary">Ver todo el catálogo</a></div>}
+      {pageCount > 1 && <nav class="pagination" aria-label="Páginas">{Array.from({length: pageCount}, (_, index) => <a href={catalogLink(selected?.code, index + 1)} aria-current={page === index + 1 ? 'page' : undefined}>{index + 1}</a>)}</nav>}
+    </div>
+  </section>
+</SiteLayout>
+<style>
+  .catalog-browse { padding-block-start: 34px; display: grid; grid-template-columns: minmax(178px, 224px) minmax(0, 1fr); gap: clamp(20px, 3vw, 45px); align-items: start; }
+  .catalog-sidebar { border: 1px solid var(--line); border-radius: 7px; padding: 14px; }
+  .catalog-sidebar summary { padding: 4px 10px 8px; cursor: pointer; font-size: 17px; font-weight: 600; }
+  .all-categories { display: block; border-radius: 5px; padding: 9px 10px; font-size: 15px; }
+  .all-categories:hover { background: var(--paper); }
+  .all-categories[aria-current] { background: var(--navy); color: white; }
+  .category-path { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 14px; }
+  .category-path a { text-decoration: underline; }
+  .catalog-tools { display: flex; align-items: end; flex-wrap: wrap; gap: 12px 18px; margin: 0 0 22px; }
+  .category-path + .catalog-tools { margin-top: 15px; }
+  .catalog-tools > label:first-of-type { flex: 1 1 220px; }
+  .catalog-tools .button { min-height: 43px; }
+  .catalog-tools a { text-decoration: underline; padding: 10px 0; font-size: 14px; }
+  .catalog-discount { display: flex; align-items: center; gap: 8px; min-height: 43px; cursor: pointer; }
+  .catalog-discount input { width: 16px; min-height: 16px; margin: 0; accent-color: var(--navy); }
+  .catalog-results .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 1050px) { .catalog-results .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 720px) { .catalog-browse { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 520px) { .catalog-tools > label:first-of-type { flex-basis: 100%; } .catalog-tools { gap: 10px 12px; } }
+</style>

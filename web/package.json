@@ -16,17 +16,30 @@
     "start": "node scripts/start-local.mjs",
     "test:http": "node scripts/test-http.mjs",
     "test:auth": "node scripts/test-auth-http.mjs",
-    "backup": "node scripts/backup.mjs"
+    "backup": "node scripts/backup.mjs",
+    "build:cloudflare": "astro build --config astro.cloudflare.config.mjs",
+    "dev:cloudflare": "astro dev --config astro.cloudflare.config.mjs --host 127.0.0.1 --port 8787",
+    "deploy:cloudflare": "node scripts/deploy-cloudflare.mjs",
+    "package:cloudflare": "node scripts/package-cloudflare.mjs"
   },
   "dependencies": {
-    "astro": "7.4.2",
-    "@astrojs/node": "11.1.9",
+    "@astrojs/cloudflare": "14.4.9",
+    "@astrojs/node": "11.1.14",
+    "@noble/hashes": "2.0.1",
+    "astro": "7.4.13",
     "sharp": "0.35.5",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.6",
+    "@cloudflare/workers-types": "5.20261120.1",
     "@types/node": "^24.0.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "wrangler": "4.165.0"
+  },
+  "imports": {
+    "#database": "./src/server/database.node.ts",
+    "#runtime": "./src/server/runtime.node.ts",
+    "#media": "./src/server/media.node.ts"
   }
 }

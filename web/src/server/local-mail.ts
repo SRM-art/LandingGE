@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { dataDir } from './db.ts';
+import { dataDir } from './db.local.ts';
 export type LocalMail = { id?:string; to:string; purpose:string; token?:string; expires?:number; text?:string; createdAt?:number };
 export function localMailEnabled(){ return process.env.LOCAL_PREVIEW==='1' || import.meta.env?.DEV===true; }
 const path=resolve(dataDir,'local-mailbox.json');

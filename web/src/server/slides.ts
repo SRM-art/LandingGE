@@ -1,6 +1,17 @@
 import {z} from 'zod';
 import {one,run,transaction,audit} from './db.ts';
 import {carouselText} from './carousel-validation.ts';
+import {additionalSlideLimit,additionalSlidesFullMessage} from '../domain/carousel.ts';
+
+export async function countAdditionalSlides():Promise<number> {
+ return (await one('SELECT COUNT(*) AS total FROM slide WHERE id>3 AND deleted_at IS NULL')).total;
+}
+
+async function requireAvailableSlideSlot(){
+ if((await countAdditionalSlides())>=additionalSlideLimit){
+  throw new Error(additionalSlidesFullMessage);
+ }
+}
 
 const slideInput=z.object({
  id:z.number().int().positive().optional(),revision:z.number().int().positive().optional(),
@@ -10,41 +21,43 @@ const slideInput=z.object({
  active:z.boolean(),
 });
 
-function currentSlide(id:number,revision:number|undefined){
+async function currentSlide(id:number,revision:number|undefined){
  if(id<=3)throw new Error('Las tres diapositivas base se conservan. Edita su contenido en Inicio y contacto.');
- const slide=one('SELECT * FROM slide WHERE id=?',id);
+ const slide=(await one('SELECT * FROM slide WHERE id=?',id));
  if(!slide)throw new Error('La diapositiva no existe.');
  if(slide.revision!==revision)throw new Error('La diapositiva cambió en otra pestaña. Recarga antes de guardar.');
  return slide;
 }
 
-export function saveSlide(input:unknown){
+export async function saveSlide(input:unknown){
  const d=slideInput.parse(input);
- if(!one('SELECT 1 FROM media WHERE id=?',d.images[0].id))throw new Error('Selecciona una imagen válida.');
- return transaction(()=>{
-  const old=d.id?currentSlide(d.id,d.revision):null;
+ if(!(await one('SELECT 1 FROM media WHERE id=?',d.images[0].id)))throw new Error('Selecciona una imagen válida.');
+ return (await transaction(async ()=>{
+  const old=d.id?(await currentSlide(d.id,d.revision)):null;
   if(old?.deleted_at&&d.active)throw new Error('Restaura la diapositiva antes de mostrarla.');
   const now=new Date().toISOString();
   let id:number;
   if(old){
    id=old.id;
-   run("UPDATE slide SET title=?,subtitle=?,description=?,media_id=?,active=?,button_text='Explorar el catálogo',button_href='/catalogo',revision=revision+1,updated_at=? WHERE id=?",d.title,d.subtitle,d.description,d.images[0].id,Number(d.active),now,id);
+   (await run("UPDATE slide SET title=?,subtitle=?,description=?,media_id=?,active=?,button_text='Explorar el catálogo',button_href='/catalogo',revision=revision+1,updated_at=? WHERE id=?",d.title,d.subtitle,d.description,d.images[0].id,Number(d.active),now,id));
   }else{
-   const position=one('SELECT COALESCE(MAX(position),-1)+1 AS next FROM slide').next;
-   const result=run("INSERT INTO slide(title,subtitle,description,button_text,button_href,media_id,position,active,updated_at) VALUES(?,?,?,'Explorar el catálogo','/catalogo',?,?,?,?)",d.title,d.subtitle,d.description,d.images[0].id,position,Number(d.active),now);
-   id=Number(result.lastInsertRowid);
+   (await requireAvailableSlideSlot());
+   const position=(await one('SELECT COALESCE(MAX(position),-1)+1 AS next FROM slide')).next;
+   id=(await one('SELECT COALESCE(MAX(id),3)+1 AS next FROM slide')).next;
+   (await run("INSERT INTO slide(id,title,subtitle,description,button_text,button_href,media_id,position,active,updated_at) VALUES(?,?,?,?,'Explorar el catálogo','/catalogo',?,?,?,?)",id,d.title,d.subtitle,d.description,d.images[0].id,position,Number(d.active),now));
   }
-  audit(old?'diapositiva_actualizada':'diapositiva_creada',d.title);
+  (await audit(old?'diapositiva_actualizada':'diapositiva_creada',d.title));
   return {id};
- });
+ }));
 }
 
-export function changeSlideState(input:unknown){
+export async function changeSlideState(input:unknown){
  const d=z.object({id:z.number().int().positive(),revision:z.number().int().positive(),action:z.enum(['hide','restore'])}).parse(input);
- return transaction(()=>{
-  const old=currentSlide(d.id,d.revision);const now=new Date().toISOString();
-  run('UPDATE slide SET deleted_at=?,active=0,revision=revision+1,updated_at=? WHERE id=?',d.action==='hide'?now:null,now,d.id);
-  audit(d.action==='hide'?'diapositiva_oculta':'diapositiva_restaurada',old.title);
+ return (await transaction(async ()=>{
+  const old=(await currentSlide(d.id,d.revision));const now=new Date().toISOString();
+  if(d.action==='restore'&&old.deleted_at)(await requireAvailableSlideSlot());
+  (await run('UPDATE slide SET deleted_at=?,active=0,revision=revision+1,updated_at=? WHERE id=?',d.action==='hide'?now:null,now,d.id));
+  (await audit(d.action==='hide'?'diapositiva_oculta':'diapositiva_restaurada',old.title));
   return {ok:true};
- });
+ }));
 }

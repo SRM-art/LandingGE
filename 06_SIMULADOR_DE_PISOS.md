@@ -2,7 +2,7 @@
 
 ## Alcance
 
-Disponible únicamente en la ficha pública de productos de la categoría con código `pisos`, vendidos por `CAJA`. No se habilita por nombre del producto ni por tener m²: quedan excluidos porcelanatos, cerámicas, zócalos y adhesivos de otras categorías. La cobertura proviene del campo M2 por presentación de la ficha; nunca se deduce de las dimensiones de una pieza. Si falta o es inválida, se muestra una indicación para consultar con un asesor.
+Disponible cuando el producto está marcado como **Apto para instalar como piso**, se vende por caja (`CAJA`) y tiene cobertura en m² por caja. La casilla se configura en el editor del producto y sigue activa si cambia su clasificación en el catálogo. Al publicar un piso por caja, el panel solicita la cobertura.
 
 El botón **¡Calcula tu espacio!** abre el simulador en una ventana modal. Se cierra con la X, Escape o un clic en el fondo; conserva los valores al reabrir y devuelve el foco al botón. La página de fondo no se desplaza mientras está abierto.
 

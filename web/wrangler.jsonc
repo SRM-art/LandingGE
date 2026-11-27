@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "gestion-esencial",
+  "compatibility_date": "2026-11-19",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "vars": {
+    "PUBLIC_ORIGIN": "https://gestionesencialsas.com",
+    "GE_OWNER_EMAIL": "administracion@gestionesencialsas.com",
+    "MAIL_FROM": "Gestión Esencial <web@avisos.gestionesencialsas.com>"
+  },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "gestion-esencial",
+    "database_id": "00000000-0000-0000-0000-000000000000",
+    "migrations_dir": "migrations-cloudflare"
+  }],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "gestion-esencial-media" }],
+  "images": { "binding": "IMAGES" }
+}

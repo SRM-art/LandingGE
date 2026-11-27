@@ -8,14 +8,13 @@ const coverage=p.measures.find((m:any)=>m.unit_code==='M2')?.amount;
 const validCoverage=Number.isSafeInteger(coverage)&&coverage>0;
 const pricing=productPricing(p);
 ---
-{isFloorByBox(p)&&<div class="floor-simulator" data-floor-calculator data-coverage={validCoverage?coverage:0} data-price={pricing.final??''} data-product={p.name} data-sku={p.sku}>
+{isFloorByBox(p)&&validCoverage&&<div class="floor-simulator" data-floor-calculator data-coverage={coverage} data-price={pricing.final??''} data-product={p.name} data-sku={p.sku}>
   <button type="button" class="button outline floor-open" data-floor-open aria-haspopup="dialog" aria-controls="floor-calculator-dialog">¡Calcula tu espacio!</button>
   <dialog id="floor-calculator-dialog" class="floor-modal" data-floor-dialog aria-labelledby="floor-calculator-title">
     <button type="button" class="floor-close" data-floor-close aria-label="Cerrar simulador"><Icon name="close" size={22}/></button>
     <section class="floor-calculator">
   <p class="eyebrow">SIMULADOR DE COMPRA</p>
   <h2 id="floor-calculator-title">Calcula tus cajas de piso.</h2>
-  {validCoverage?<>
     <p class="floor-intro">Cada caja cubre <strong>{quantity(coverage)} m²</strong>. Ingresa el área que deseas cubrir, sin agregar desperdicio.</p>
     <form data-floor-form novalidate>
       <div class="floor-fields">
@@ -35,7 +34,6 @@ const pricing=productPricing(p);
     </div>
     <details class="floor-method"><summary>¿Cómo se calcula?</summary><p>Área × (1 + excedente / 100) ÷ m² por caja. Siempre se redondea al siguiente número entero de cajas cuando hay una fracción. La cobertura comprada puede superar el área con excedente porque se venden cajas completas.</p></details>
     <noscript><p class="floor-help">Activa JavaScript para utilizar el simulador o consulta la cantidad con nuestro equipo.</p></noscript>
-  </>:<p class="floor-help">Estamos completando los m² por caja de este piso. Consulta con nuestro equipo para calcular la cantidad.</p>}
 </section></dialog></div>}
 <style>
 .floor-simulator{margin-top:24px}.floor-open{border-color:#9bb1c3;color:var(--blue);font-size:14px}.floor-modal{width:min(640px,calc(100% - 32px));max-height:calc(100dvh - 32px);padding:0;overflow:auto;overscroll-behavior:contain;border-radius:10px}.floor-close{position:absolute;right:11px;top:10px;width:32px;height:32px;display:grid;place-items:center;border-radius:50%;z-index:1}.floor-close:hover{background:#e2eaf0}

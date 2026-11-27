@@ -10,6 +10,9 @@
 **/node_modules/
 **/.local/
 **/dist/
+**/dist-cloudflare/
+**/.wrangler/
+**/.dev.vars*
 **/.astro/
 **/.sites-runtime/
 **/test-results/

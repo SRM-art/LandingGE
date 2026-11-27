@@ -1,0 +1,81 @@
+---
+import CategoryProducts from '../../components/CategoryProducts.astro';
+import AdminCategoryTree from '../../components/AdminCategoryTree.astro';
+import { categoryHeight, categoryLevels, categoryPath, orderedCategories } from '../../domain/category-tree';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { categoryUsage } from '../../server/categories';
+import { categories } from '../../server/db';
+
+const rows = orderedCategories((await categories(true)));
+const active = rows.filter(row => !row.deleted_at);
+const retired = rows.filter(row => row.deleted_at);
+const paths = new Map(rows.map(row => [row.id, categoryPath(rows, row.id)]));
+const usage = (await categoryUsage());
+const query = Astro.url.searchParams;
+const editing = active.find(row => row.id === Number(query.get('editar')));
+const parent = active.find(row => row.id === Number(query.get('padre')) && paths.get(row.id)!.length < categoryLevels.length);
+const showEditor = editing || parent || query.has('nueva');
+const newLevel = categoryLevels[parent ? paths.get(parent.id)!.length : 0];
+const impact = editing ? usage.get(editing.id) : undefined;
+const selectedBranch = editing ?? parent ?? active.find(row => row.id === Number(query.get('rama')));
+const openPath = selectedBranch ? paths.get(selectedBranch.id)!.map(row => row.id) : [];
+const height = editing ? categoryHeight(rows, editing.id) : 1;
+const parents = editing ? active.filter(row => {
+  const path = paths.get(row.id)!;
+  return path.length + height <= categoryLevels.length && !path.some(node => node.id === editing.id);
+}) : [];
+---
+<AdminLayout title="Categorías">
+  <div class="admin-heading">
+    <div><h1>Categorías</h1><p>Organiza el lateral del catálogo y revisa qué productos usan cada rama.</p></div>
+    <a href="?nueva=1#editor-categoria" class="button primary">+ Nueva categoría</a>
+  </div>
+  {showEditor && <section class="panel" id="editor-categoria">
+    <h2>{editing ? 'Editar ' + editing.name : `Agregar ${newLevel.toLowerCase()}`}</h2>
+    {parent && !editing && <p class="hint">Dentro de {paths.get(parent.id)!.map(node => node.name).join(' › ')}</p>}
+    {impact && <div class="edit-impact">
+      <p>Los productos conservan su asignación si cambias el nombre o mueves esta rama.</p>
+      <CategoryProducts products={impact} listId="editor-affected-products"/>
+    </div>}
+    <form data-category-form data-id={editing?.id ?? ''}>
+      <label>Nombre<input name="name" value={editing?.name ?? ''} required minlength="2" maxlength="80"/></label>
+      {editing ? <details class="advanced">
+        <summary>Mover u ordenar</summary>
+        <div class="field-pair">
+          <label>Pertenece a<select name="parent_id">
+            <option value="">Categoría principal</option>
+            {parents.map(option => <option value={option.id} selected={editing.parent_id === option.id}>{paths.get(option.id)!.map(node => node.name).join(' › ')}</option>)}
+          </select></label>
+          <label>Orden en su nivel<input type="number" name="position" min="0" max="9999" required value={editing.position}/></label>
+        </div>
+      </details> : <><input type="hidden" name="parent_id" value={parent?.id ?? ''}/><input type="hidden" name="position" value="0"/></>}
+      <div class="actions"><button class="button primary" type="submit" data-save>{editing ? 'Guardar cambios' : 'Agregar'}</button><a href="/admin/categorias" class="button outline">Cancelar</a></div>
+      <p class="form-status" data-form-status role="status"></p>
+    </form>
+  </section>}
+  <section class="panel">
+    <h2>Árbol del catálogo</h2>
+    {active.length ? <AdminCategoryTree rows={active} usage={usage} openPath={openPath}/> : <p>Aún no hay categorías activas.</p>}
+    {retired.length > 0 && <details class="retired">
+      <summary>Ramas retiradas ({retired.length})</summary>
+      <ul class="category-rows">
+        {retired.map(row => <li class="category-row">
+          <span>{paths.get(row.id)!.map(node => node.name).join(' › ')}</span>
+          <div class="row-actions"><button type="button" value={row.id} data-category-action="restore">Restaurar</button></div>
+        </li>)}
+      </ul>
+    </details>}
+  </section>
+</AdminLayout>
+<style>
+  .actions { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; }
+  .advanced, .retired { margin-block: 18px; }
+  summary { cursor: pointer; }
+  .advanced .field-pair { margin-top: 12px; }
+  .edit-impact { margin-bottom: 20px; padding: 12px; border-radius: 5px; background: var(--paper); }
+  .edit-impact p { font-size: 13px; margin-bottom: 6px; }
+  .category-rows { list-style: none; padding: 0; }
+  .category-row { display: flex; justify-content: space-between; align-items: start; gap: 8px 22px; border-top: 1px solid var(--line); padding-block: 12px; }
+  .row-actions { flex-wrap: wrap; }
+  @media (max-width: 640px) { .category-row { flex-direction: column; } }
+</style>

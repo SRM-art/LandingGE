@@ -3,12 +3,15 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
 import ImageEditor from '../../../components/ImageEditor.astro';
 import CarouselTextField from '../../../components/CarouselTextField.astro';
 import {one} from '../../../server/db';
+import {countAdditionalSlides} from '../../../server/slides';
+import {additionalSlideLimit} from '../../../domain/carousel';
 const isNew=Astro.params.id==='nueva';
-const p=isNew?null:one('SELECT * FROM slide WHERE id=? AND id>3',Number(Astro.params.id)||0);
+if(isNew&&(await countAdditionalSlides())>=additionalSlideLimit)return Astro.redirect('/admin/contenidos#diapositivas-adicionales');
+const p=isNew?null:(await one('SELECT * FROM slide WHERE id=? AND id>3',Number(Astro.params.id)||0));
 if(!isNew&&!p)return Astro.redirect('/admin/contenidos#diapositivas-adicionales');
 ---
-<AdminLayout title={p?'Editar diapositiva':'Agregar diapositiva'}>
- <div class="admin-heading"><div><a class="back-link" href="/admin/contenidos#diapositivas-adicionales">← Volver a Inicio y contacto</a><h1>{p?'Editar':'Agregar'} diapositiva</h1><p>Tu imagen y tus textos, con el formato de Gestión Esencial.</p></div></div>
+<AdminLayout title={p?'Editar tarjeta':'Agregar tarjeta'}>
+ <div class="admin-heading"><div><a class="back-link" href="/admin/contenidos#diapositivas-adicionales">← Volver a Inicio y contacto</a><h1>{p?'Editar':'Agregar'} tarjeta</h1><p>Agrega una imagen y los textos. El botón al catálogo se incluye automáticamente.</p></div></div>
  {p?.deleted_at&&<div class="notice">Esta diapositiva está oculta. Puedes editarla; restáurala antes de volver a mostrarla.</div>}
  <form data-custom-slide-form data-id={p?.id||''} data-revision={p?.revision||''}>
   <div class="editor-grid"><div><section class="panel"><h2>Textos de la diapositiva</h2>
