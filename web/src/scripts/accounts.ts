@@ -1,3 +1,15 @@
+const linkToken=document.querySelector<HTMLInputElement>('[data-link-token]');
+if(linkToken?.form){
+ const fragment=new URLSearchParams(location.hash.slice(1)).get('token');
+ if(fragment!==null || linkToken.value)history.replaceState(null,'',location.pathname);
+ if(fragment && /^[a-f0-9]{64}$/.test(fragment)){
+  linkToken.value=fragment;
+  linkToken.form.hidden=false;
+  const notice=document.querySelector<HTMLElement>('[data-link-notice]');
+  if(notice)notice.hidden=true;
+ }
+}
+
 document.querySelectorAll<HTMLButtonElement>('[data-show-password]').forEach(button=>button.addEventListener('click',()=>{
  const input=document.getElementById(button.dataset.showPassword!) as HTMLInputElement;
  input.type=input.type==='password'?'text':'password';button.textContent=input.type==='password'?'Mostrar':'Ocultar';button.setAttribute('aria-pressed',String(input.type==='text'));

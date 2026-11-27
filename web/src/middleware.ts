@@ -12,9 +12,10 @@ export const onRequest=defineMiddleware(async(ctx,next)=>{
   if(!host || !/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host))return new Response('Host no permitido.',{status:403});
  }
  const path=ctx.url.pathname.replace(/\/$/,'')||'/';
- ctx.locals.user=(await identity(ctx.cookies.get(cookieName)?.value,path.startsWith('/admin')));
+ const admin=path==='/admin'||path.startsWith('/admin/');
+ ctx.locals.user=(await identity(ctx.cookies.get(cookieName)?.value,admin));
  ctx.locals.isAdmin=!!ctx.locals.user;
- const privateAdmin=path.startsWith('/admin')&&!publicAdmin.has(path);
+ const privateAdmin=admin&&!publicAdmin.has(path);
  let response:Response;
  const error=(message:string,status:number)=>new Response(JSON.stringify({error:message}),{status,headers:{'Content-Type':'application/json'}});
  if(privateAdmin&&!ctx.locals.isAdmin)response=path.startsWith('/admin/api/')?error('Inicia sesión de nuevo.',401):ctx.redirect('/admin/login');
@@ -26,8 +27,14 @@ export const onRequest=defineMiddleware(async(ctx,next)=>{
  }
  response=await requestActor.run(ctx.locals.user?.id||null,()=>next());
  }
- response.headers.set('Cache-Control','no-store');response.headers.set('X-Content-Type-Options','nosniff');response.headers.set('X-Frame-Options',ctx.url.pathname.startsWith('/admin')?'DENY':'SAMEORIGIN');response.headers.set('Referrer-Policy','strict-origin-when-cross-origin');
- if(!indexPublicSite()||path.startsWith('/admin'))response.headers.set('X-Robots-Tag','noindex, nofollow');
- if(path.startsWith('/admin'))response.headers.set('Referrer-Policy','no-referrer');
+ response.headers.set('Cache-Control','no-store');
+ response.headers.set('X-Content-Type-Options','nosniff');
+ response.headers.set('X-Frame-Options',admin?'DENY':'SAMEORIGIN');
+ response.headers.set('Referrer-Policy',admin?'no-referrer':'strict-origin-when-cross-origin');
+ response.headers.set('Permissions-Policy','camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+ response.headers.set('Content-Security-Policy',`object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors ${admin?"'none'":"'self'"}`);
+ if(production && ctx.url.protocol==='https:')response.headers.set('Strict-Transport-Security','max-age=31536000');
+ if(!indexPublicSite()||admin)response.headers.set('X-Robots-Tag','noindex, nofollow');
+ else if(response.status===404)response.headers.set('X-Robots-Tag','noindex, follow');
  return response;
 });

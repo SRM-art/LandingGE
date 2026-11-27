@@ -29,7 +29,7 @@ assert.ok(email,'El correo del propietario debe estar definido en wrangler.jsonc
 const password='Una contraseña aislada para emulación';
 const setupToken=randomBytes(24).toString('hex');
 const server=spawn(process.execPath,[wrangler,'dev','--config',config,'--port','18787','--ip','127.0.0.1',...local,
-  '--var','PUBLIC_ORIGIN:'+origin,'--var','GE_SETUP_TOKEN:'+setupToken],
+  '--var','PUBLIC_ORIGIN:'+origin,'--var','GE_SETUP_TOKEN:'+setupToken,'--var','ALLOW_INDEXING:1'],
   {windowsHide:true,stdio:['ignore','pipe','pipe']});
 let logs='';server.stdout.on('data',chunk=>logs+=chunk);server.stderr.on('data',chunk=>logs+=chunk);
 let cookie='';
@@ -43,7 +43,10 @@ try{
     try{home=await fetch(origin+'/');}catch{await new Promise(resolve=>setTimeout(resolve,150));}
   }
   assert.equal(home?.status,200,'portada de Workers');
+  assert.equal(home.headers.get('x-robots-tag'),null);
   assert.ok(!(await home.text()).includes('Vista local'),'producción no muestra la barra de pruebas');
+  assert.ok((await(await fetch(origin+'/robots.txt')).text()).includes('Sitemap: '+origin+'/sitemap.xml'));
+  assert.ok((await(await fetch(origin+'/sitemap.xml')).text()).includes(`<loc>${origin}/catalogo</loc>`));
   assert.equal((await fetch(origin+'/catalogo')).status,200);
   assert.equal((await fetch(origin+'/admin/api/export')).status,401);
   assert.equal((await fetch(origin+'/admin/correo-local')).status,404);
@@ -51,6 +54,7 @@ try{
   assert.equal((await post('auth/setup',{email:'unauthorized@example.test',password,confirmation:password,setupToken})).status,403);
   const owner=await post('auth/setup',{email,password,confirmation:password,setupToken});
   assert.equal(owner.status,200,await owner.clone().text());
+  assert.match(owner.headers.get('set-cookie'),/^__Host-ge_account_session=.*;.*Secure/i);
   cookie=owner.headers.get('set-cookie').split(';')[0];
   assert.ok((await(await fetch(origin+'/admin',{headers:{Cookie:cookie}})).text()).includes(email));
   const edited=await Promise.all(['Una rama de ensayo','Otra rama de ensayo'].map(name=>post('category',{action:'create',name,parent_id:null,position:2})));
@@ -77,12 +81,18 @@ try{
   const created=await post('product',draft);
   assert.equal(created.status,200,await created.clone().text());
   const product=await created.json();
-  assert.ok((await(await fetch(origin+'/catalogo/'+product.slug)).text()).includes('data-floor-calculator'));
+  const detail=await(await fetch(origin+'/catalogo/'+product.slug)).text();
+  assert.ok(detail.includes('data-floor-calculator'));
+  assert.ok(detail.includes('<link rel="canonical" href="'+origin+'/catalogo/'+product.slug+'"'));
+  assert.match(detail,/"priceCurrency":"COP"/);
+  assert.equal((await fetch(origin+'/catalogo/'+product.id,{redirect:'manual'})).status,301);
+  assert.ok((await(await fetch(origin+'/sitemap.xml')).text()).includes('/catalogo/'+product.slug));
   assert.equal((await fetch(origin+photo.url)).status,200);
   const concurrent=await Promise.all(['95000','99000'].map(price=>post('product',{...draft,id:product.id,revision:1,price})));
   assert.deepEqual(concurrent.map(response=>response.status).sort(),[200,400]);
   assert.equal((await post('state',{kind:'product',id:product.id,action:'hide'})).status,200);
   assert.equal((await fetch(origin+'/catalogo/'+product.slug)).status,404);
+  assert.ok(!(await(await fetch(origin+'/sitemap.xml')).text()).includes('/catalogo/'+product.slug));
   assert.equal((await fetch(origin+photo.url)).status,404);
   assert.equal((await post('logout',{})).status,200);
   assert.equal((await fetch(origin+'/admin/api/export',{headers:{Cookie:cookie}})).status,401);

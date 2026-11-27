@@ -209,7 +209,8 @@ npx.cmd wrangler secret put GE_SETUP_TOKEN --config wrangler.jsonc
 
 5. En **Workers & Pages → gestion-esencial → Domains**, confirma que figura `gestionesencialsas.com`. Si gestionas la ruta desde el panel, el recorrido alternativo es **Settings → Domains & Routes → Add → Custom Domain**. La ruta declarada en `wrangler.jsonc` mantiene la configuración en los siguientes despliegues.
 6. Sigue la sección 5 en el dominio final con los **secretos de producción**. Crea al propietario `administracion@gestionesencialsas.com` e invita a la misma persona con el segundo buzón. Las cuentas del panel y las sesiones se crean por entorno, reutilizando las dos direcciones existentes. Si el sitio devuelve un error o no abre por HTTPS, revisa **Workers & Pages → gestion-esencial → Observability** y la sección **SSL/TLS → Edge Certificates** de la zona. Si debes volver a la portada anterior, retira primero la ruta de producción del Worker y repón el registro web que guardaste.
-7. Verifica en una ventana privada la portada y el catálogo. Comprueba el ingreso de ambos roles al panel y la recepción de correo en ambos buzones. Cambia `ALLOW_INDEXING` a `"1"` y ejecuta de nuevo `npm.cmd run deploy:cloudflare` una vez aprobada la web. [Dominios personalizados de Workers](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
+7. Verifica en una ventana privada la portada y el catálogo. Comprueba el ingreso de ambos roles y prueba las invitaciones, la recuperación y el cambio de correo enviados por Resend. El token llega en el fragmento `#token=…` y el formulario lo retira de la barra de direcciones al abrir. En Cloudflare, confirma que **SSL/TLS → Edge Certificates → Always Use HTTPS** esté activo y que ambos buckets R2 sigan privados. [HTTPS en Cloudflare](https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/)
+8. Una vez aprobada la web, cambia `vars.ALLOW_INDEXING` a `"1"` en `web/wrangler.jsonc` y ejecuta de nuevo `npm.cmd run deploy:cloudflare`. Esto habilita el rastreo público y el sitemap del dominio final. Conserva `"0"` en el entorno de pruebas. [Dominios personalizados de Workers](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
 
 ### Redirigir `www` al dominio principal
 
@@ -232,3 +233,16 @@ npx.cmd wrangler secret put GE_SETUP_TOKEN --config wrangler.jsonc
 2. Escribe `gestionesencialsas.com`, sin `https://` ni rutas, pulsa **Continuar** y copia el valor TXT de verificación.
 3. En **Cloudflare → gestionesencialsas.com → DNS → Records → Add record**, selecciona **TXT**, usa `@` para la raíz y pega el valor de Google. Guarda el registro y vuelve a Search Console para pulsar **Verificar**.
 4. Con `ALLOW_INDEXING=1` publicado, usa **Inspección de URLs** con `https://gestionesencialsas.com/`. Comprueba que Google puede acceder y pulsa **Solicitar indexación** si la página responde correctamente. [Añadir una propiedad](https://support.google.com/webmasters/answer/34592) · [Inspección de URLs](https://support.google.com/webmasters/answer/9012289)
+5. Abre `/robots.txt` y `/sitemap.xml` en el dominio final. Comprueba que el sitemap contiene únicamente las páginas públicas y fichas publicadas. En Search Console, abre **Sitemaps**, escribe `sitemap.xml` y envíalo. [Enviar un sitemap](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap)
+
+## 8. Respaldar los datos de producción
+
+1. Desde `web`, con `wrangler.jsonc` apuntando a producción, exporta D1 a una ubicación restringida fuera de Git. Registra la fecha y el marcador de Time Travel para poder coordinar el punto de recuperación con el respaldo de objetos. La exportación completa incluye datos de autenticación. [Comandos de D1](https://developers.cloudflare.com/workers/wrangler/commands/d1/) · [D1 Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/)
+
+   ```powershell
+   npx.cmd wrangler d1 export DB --remote --config wrangler.jsonc --output '.\.local\d1-produccion.sql'
+   npx.cmd wrangler d1 time-travel info DB --config wrangler.jsonc
+   ```
+
+2. Copia los objetos de `gestion-esencial-media` a un destino privado e independiente, con Rclone y credenciales de R2 limitadas a lectura del bucket de origen. Conserva los nombres de los objetos y registra la fecha de la copia. [Rclone para R2](https://developers.cloudflare.com/r2/examples/rclone/)
+3. Ensaya la recuperación con una base y un bucket separados. Comprueba catálogo, acceso administrativo y una muestra de fotos. Si se necesita recuperar producción, conserva primero una copia del estado actual. Evalúa qué sesiones y enlaces de acceso habría que revocar, porque una restauración devuelve los registros de autenticación al punto recuperado.

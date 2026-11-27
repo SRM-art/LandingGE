@@ -1,3 +1,4 @@
+import { CatalogError } from '../domain/catalog-error.ts';
 import {z} from 'zod';
 import {one,run,transaction,audit} from './db.ts';
 import {carouselText} from './carousel-validation.ts';
@@ -9,7 +10,7 @@ export async function countAdditionalSlides():Promise<number> {
 
 async function requireAvailableSlideSlot(){
  if((await countAdditionalSlides())>=additionalSlideLimit){
-  throw new Error(additionalSlidesFullMessage);
+  throw new CatalogError(additionalSlidesFullMessage);
  }
 }
 
@@ -22,19 +23,19 @@ const slideInput=z.object({
 });
 
 async function currentSlide(id:number,revision:number|undefined){
- if(id<=3)throw new Error('Las tres diapositivas base se conservan. Edita su contenido en Inicio y contacto.');
+ if(id<=3)throw new CatalogError('Las tres diapositivas base se conservan. Edita su contenido en Inicio y contacto.');
  const slide=(await one('SELECT * FROM slide WHERE id=?',id));
- if(!slide)throw new Error('La diapositiva no existe.');
- if(slide.revision!==revision)throw new Error('La diapositiva cambió en otra pestaña. Recarga antes de guardar.');
+ if(!slide)throw new CatalogError('La diapositiva no existe.');
+ if(slide.revision!==revision)throw new CatalogError('La diapositiva cambió en otra pestaña. Recarga antes de guardar.');
  return slide;
 }
 
 export async function saveSlide(input:unknown){
  const d=slideInput.parse(input);
- if(!(await one('SELECT 1 FROM media WHERE id=?',d.images[0].id)))throw new Error('Selecciona una imagen válida.');
+ if(!(await one('SELECT 1 FROM media WHERE id=?',d.images[0].id)))throw new CatalogError('Selecciona una imagen válida.');
  return (await transaction(async ()=>{
   const old=d.id?(await currentSlide(d.id,d.revision)):null;
-  if(old?.deleted_at&&d.active)throw new Error('Restaura la diapositiva antes de mostrarla.');
+  if(old?.deleted_at&&d.active)throw new CatalogError('Restaura la diapositiva antes de mostrarla.');
   const now=new Date().toISOString();
   let id:number;
   if(old){

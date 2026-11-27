@@ -1,3 +1,4 @@
+import { CatalogError } from '../domain/catalog-error.ts';
 import { z } from 'zod';
 import { all, audit, one, run, transaction } from './db.ts';
 
@@ -15,7 +16,7 @@ export async function manageCity(input: unknown) {
       const collator = new Intl.Collator('es-CO', {sensitivity: 'base'});
       const duplicate = (await all('SELECT name, deleted_at FROM city'))
         .find(city => collator.compare(city.name, change.name) === 0);
-      if (duplicate) throw new Error(duplicate.deleted_at
+      if (duplicate) throw new CatalogError(duplicate.deleted_at
         ? 'Esta ciudad ya existe entre las retiradas. Puedes restaurarla.'
         : 'Esta ciudad ya existe.');
       const id = (await one('SELECT COALESCE(MAX(id),0)+1 AS next FROM city')).next;
@@ -25,7 +26,7 @@ export async function manageCity(input: unknown) {
     }
 
     const city = (await one('SELECT name, deleted_at FROM city WHERE id=?', change.id));
-    if (!city) throw new Error('Ciudad no encontrada.');
+    if (!city) throw new CatalogError('Ciudad no encontrada.');
     const hide = change.action === 'hide';
     if (hide !== Boolean(city.deleted_at)) {
       (await run('UPDATE city SET deleted_at=? WHERE id=?', hide ? new Date().toISOString() : null, change.id));

@@ -1,3 +1,4 @@
+import { CatalogError } from '../domain/catalog-error.ts';
 import { readFile, mkdir, writeFile, rm } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
 import sharp from 'sharp';
@@ -5,9 +6,9 @@ import { dataDir } from './db.local.ts';
 
 export async function storeMedia(id: string, file: File) {
   const bytes = Buffer.from(await file.arrayBuffer());
-  const info = await sharp(bytes,{limitInputPixels:40_000_000}).metadata();
-  if (!['jpeg','png','webp'].includes(info.format ?? '') || (info.pages ?? 1)>1) {
-    throw new Error('Solo se permiten fotografías JPEG, PNG o WebP sin animación.');
+  const info = await sharp(bytes,{limitInputPixels:40_000_000}).metadata().catch(()=>null);
+  if (!info || !['jpeg','png','webp'].includes(info.format ?? '') || (info.pages ?? 1)>1) {
+    throw new CatalogError('Solo se permiten fotografías JPEG, PNG o WebP sin animación.');
   }
   const key = `uploads/${id}.${info.format==='jpeg'?'jpg':info.format}`;
   await mkdir(resolve(dataDir,'uploads'),{recursive:true});

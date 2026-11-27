@@ -32,11 +32,20 @@ const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
 const requestedPage = Number(incoming.get('page'));
 const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? Math.min(pageCount, requestedPage) : 1;
 const visible = rows.slice((page - 1) * pageSize, page * pageSize);
+const heading = selected?.name || (q.has('discount') ? 'Ofertas del catálogo' : 'Catálogo');
+const canonicalParams = new URLSearchParams();
+if (selected) canonicalParams.set('rama', selected.code);
+if (q.has('discount')) canonicalParams.set('discount', '1');
+if (page > 1) canonicalParams.set('page', String(page));
+const canonicalPath = '/catalogo' + (canonicalParams.size ? '?' + canonicalParams : '');
+const description = selected
+  ? `Explora ${selected.name} en Gestión Esencial. Consulta referencias, precios y presentaciones del catálogo.`
+  : 'Explora pisos, revestimientos y complementos. Consulta precios en pesos colombianos y cotiza con nuestro equipo.';
 ---
-<SiteLayout title="Catálogo">
+<SiteLayout title={heading} description={description} canonicalPath={canonicalPath} noindex={!!search || q.has('sort')}>
   <section class="page-intro">
     <p class="eyebrow">EXPLORA NUESTRA SELECCIÓN</p>
-    <h1>Encuentra la esencia<br/><em>de tu próximo espacio.</em></h1>
+    <h1>{selected || q.has('discount') ? heading : <>Encuentra la esencia<br/><em>de tu próximo espacio.</em></>}</h1>
     <p>Pisos, texturas y complementos que dan forma a tus ideas.</p>
   </section>
   <section class="section catalog-browse">

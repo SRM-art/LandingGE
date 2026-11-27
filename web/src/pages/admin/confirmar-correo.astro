@@ -1,4 +1,7 @@
 ---
-import AccessLayout from '../../layouts/AccessLayout.astro';const token=Astro.url.searchParams.get('token')||'';
+import {production} from "#runtime";
+import AccessLayout from '../../layouts/AccessLayout.astro';
+const queryToken=production?'':Astro.url.searchParams.get('token')||'';
+const token=/^[a-f0-9]{64}$/.test(queryToken)?queryToken:'';
 ---
-<AccessLayout title="Confirmar correo"><h1>Confirma tu nuevo correo.</h1><p>Al confirmar, usarás el nuevo correo para ingresar y se cerrarán tus sesiones anteriores.</p><form data-auth-form="confirm-email" class="account-form"><input type="hidden" name="token" value={token}/><div class="form-actions"><button class="button primary" type="submit">Confirmar cambio →</button><a class="button outline" href="/admin/login">Cancelar</a></div><p data-auth-status class="form-status" role="status"></p></form></AccessLayout>
+<AccessLayout title="Confirmar correo"><h1>Confirma tu nuevo correo.</h1><p>Al confirmar, usarás el nuevo correo para ingresar y se cerrarán tus sesiones anteriores.</p><form data-auth-form="confirm-email" class="account-form" hidden={!token}><input type="hidden" name="token" value={token} data-link-token/><div class="form-actions"><button class="button primary" type="submit">Confirmar cambio →</button><a class="button outline" href="/admin/login">Cancelar</a></div><p data-auth-status class="form-status" role="status"></p></form><div data-link-notice hidden={!!token}><p class="notice">Abre el enlace del mensaje más reciente para continuar.</p><a class="text-link" href="/admin/login">Ir al inicio de sesión</a></div></AccessLayout>

@@ -1,3 +1,4 @@
+import { CatalogError } from '../domain/catalog-error.ts';
 import { env } from 'cloudflare:workers';
 
 const sizes = [480, 960, 1600];
@@ -7,9 +8,9 @@ const variants = (id: string) => sizes.map(size => `variants/${id}-${size}.webp`
 export async function storeMedia(id: string, file: File) {
   const images = env.IMAGES;
   const source = () => file.stream() as unknown as Parameters<typeof images.info>[0];
-  const info = await images.info(source());
-  if (!('width' in info) || !['image/jpeg','image/png','image/webp'].includes(info.format) || info.width*info.height>40_000_000) {
-    throw new Error('Selecciona una foto JPEG, PNG o WebP de hasta 40 megapíxeles.');
+  const info = await images.info(source()).catch(()=>null);
+  if (!info || !('width' in info) || !['image/jpeg','image/png','image/webp'].includes(info.format) || info.width*info.height>40_000_000) {
+    throw new CatalogError('Selecciona una foto JPEG, PNG o WebP de hasta 40 megapíxeles.');
   }
   const key = `uploads/${id}.${info.format.split('/')[1]}`;
   const objects = variants(id);
@@ -18,7 +19,7 @@ export async function storeMedia(id: string, file: File) {
     await bucket().put(objects[index], await result.response().arrayBuffer(), {httpMetadata:{contentType:'image/webp'}});
   }));
   try {
-    if(results.some(result=>result.status==='rejected')) throw new Error('No se pudieron generar los tamaños de la imagen.');
+    if(results.some(result=>result.status==='rejected')) throw new CatalogError('No se pudieron generar los tamaños de la imagen.');
     await bucket().put(key,await file.arrayBuffer(),{httpMetadata:{contentType:info.format}});
   } catch(error) {
     await removeMedia(id,key);

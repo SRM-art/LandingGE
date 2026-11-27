@@ -9,7 +9,8 @@ export const localMessages = (): import('./local-mail.ts').LocalMail[] => [];
 export const passwordScheme = 'argon2id:19456:2:1';
 
 export function allowSetup(email: unknown, secret: unknown) {
-  if (typeof email !== 'string' || typeof secret !== 'string' || email.trim().toLowerCase() !== env.GE_OWNER_EMAIL) return false;
+  const owner = env.GE_OWNER_EMAIL?.trim().toLowerCase();
+  if (!owner || typeof email !== 'string' || typeof secret !== 'string' || email.trim().toLowerCase() !== owner) return false;
   const configured = String(env.GE_SETUP_TOKEN || '');
   if (configured.length < 32 || secret.length !== configured.length) return false;
   const expected = Buffer.from(configured), supplied = Buffer.from(secret);
@@ -25,7 +26,7 @@ export async function sendMail(mail: import('./local-mail.ts').LocalMail) {
   const routes: Record<string,string> = {invite:'/admin/activar', reset:'/admin/restablecer', email:'/admin/confirmar-correo'};
   const entry = routes[mail.purpose];
   const link = entry && mail.token ? new URL(entry, publicOrigin()) : undefined;
-  if (link && mail.token) link.searchParams.set('token', mail.token);
+  if (link && mail.token) link.hash = 'token=' + mail.token;
   const response = await fetch('https://api.resend.com/emails', {
     method:'POST',
     headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`, 'Content-Type':'application/json'},

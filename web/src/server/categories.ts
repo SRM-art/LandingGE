@@ -1,3 +1,4 @@
+import { CatalogError } from '../domain/catalog-error.ts';
 import { z } from 'zod';
 import { categoryHeight, categoryLevels, categoryPath } from '../domain/category-tree.ts';
 import { slugify } from '../domain/pricing.ts';
@@ -47,25 +48,25 @@ export async function manageCategory(payload: unknown) {
   return (await transaction(async () => {
     const rows = (await categories(true));
     const current = 'id' in change ? rows.find(row => row.id === change.id) : undefined;
-    if ('id' in change && !current) throw new Error('La clasificación no existe.');
+    if ('id' in change && !current) throw new CatalogError('La clasificación no existe.');
 
     if (change.action === 'create' || change.action === 'edit') {
-      if (current?.deleted_at) throw new Error('Restaura la clasificación antes de editarla.');
+      if (current?.deleted_at) throw new CatalogError('Restaura la clasificación antes de editarla.');
       const parentPath = categoryPath(rows, change.parent_id);
       if (change.parent_id !== null && (!parentPath.length || parentPath.some(row => row.deleted_at))) {
-        throw new Error('Selecciona una clasificación superior activa.');
+        throw new CatalogError('Selecciona una clasificación superior activa.');
       }
       if (current && parentPath.some(row => row.id === current.id)) {
-        throw new Error('Una clasificación no puede depender de sí misma ni de una de sus ramas.');
+        throw new CatalogError('Una clasificación no puede depender de sí misma ni de una de sus ramas.');
       }
       const branchHeight = current ? categoryHeight(rows, current.id) : 1;
       if (parentPath.length + branchHeight > categoryLevels.length) {
-        throw new Error('El catálogo admite tres niveles: categoría, subcategoría y criterio.');
+        throw new CatalogError('El catálogo admite tres niveles: categoría, subcategoría y criterio.');
       }
       const collator = new Intl.Collator('es-CO', {sensitivity: 'base'});
       const duplicate = rows.find(row => row.id !== current?.id && row.parent_id === change.parent_id
         && collator.compare(row.name, change.name) === 0);
-      if (duplicate) throw new Error(duplicate.deleted_at
+      if (duplicate) throw new CatalogError(duplicate.deleted_at
         ? 'Ese nombre ya existe en esta rama. Puedes restaurar la clasificación retirada.'
         : 'Ese nombre ya existe en esta rama.');
 
@@ -85,18 +86,18 @@ export async function manageCategory(payload: unknown) {
       return {id};
     }
 
-    if (!current) throw new Error('La clasificación no existe.');
+    if (!current) throw new CatalogError('La clasificación no existe.');
     const hide = change.action === 'hide';
     if (hide === Boolean(current.deleted_at)) return {id: current.id};
     if (hide) {
       if ((await categoryUsage(current.id, 1)).has(current.id)) {
-        throw new Error('No se puede retirar esta clasificación porque está en uso. Reasigna los productos vinculados en el árbol del catálogo.');
+        throw new CatalogError('No se puede retirar esta clasificación porque está en uso. Reasigna los productos vinculados en el árbol del catálogo.');
       }
       if (rows.some(row => row.parent_id === current.id && !row.deleted_at)) {
-        throw new Error('Mueve o retira primero las ramas que dependen de esta clasificación.');
+        throw new CatalogError('Mueve o retira primero las ramas que dependen de esta clasificación.');
       }
     } else if (categoryPath(rows, current.parent_id).some(row => row.deleted_at)) {
-      throw new Error('Restaura primero la clasificación superior.');
+      throw new CatalogError('Restaura primero la clasificación superior.');
     }
     (await run('UPDATE category SET deleted_at=? WHERE id=?', hide ? new Date().toISOString() : null, current.id));
     (await audit(hide ? 'retirar_categoria' : 'restaurar_categoria', current.name));

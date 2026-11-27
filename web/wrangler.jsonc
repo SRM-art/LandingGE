@@ -8,6 +8,7 @@
   "observability": { "enabled": true },
   "vars": {
     "PUBLIC_ORIGIN": "https://gestionesencialsas.com",
+    "ALLOW_INDEXING": "0",
     "GE_OWNER_EMAIL": "administracion@gestionesencialsas.com",
     "MAIL_FROM": "Gestión Esencial <web@avisos.gestionesencialsas.com>"
   },

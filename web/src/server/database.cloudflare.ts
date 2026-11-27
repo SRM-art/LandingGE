@@ -1,3 +1,4 @@
+import { CatalogError } from '../domain/catalog-error.ts';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { env } from 'cloudflare:workers';
 import type { D1DatabaseSession, D1PreparedStatement } from '@cloudflare/workers-types';
@@ -44,5 +45,5 @@ export async function transaction<T>(task: () => Promise<T>): Promise<T> {
       if (!String(error).includes('ge_revision_guard')) throw error;
     }
   }
-  throw new Error('Hay otra operación guardando cambios. Inténtalo de nuevo.');
+  throw new CatalogError('Hay otra operación guardando cambios. Inténtalo de nuevo.');
 }

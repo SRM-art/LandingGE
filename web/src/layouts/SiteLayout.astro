@@ -1,15 +1,27 @@
 ---
-import {production,indexPublicSite} from "#runtime";
+import {production,indexPublicSite,publicOrigin} from "#runtime";
 import '../styles/site.css';
 import '../styles/discounts.css';
 import '../styles/home.css';
 import Icon from '../components/Icon.astro';
 import WhatsApp from '../components/WhatsApp.astro';
 import {settings} from '../server/db';
-const {title='Pisos, superficies y espacios con carácter',description='Descubre los pisos, materiales y proyectos de Gestión Esencial.'}=Astro.props;
+const {canonicalPath, noindex=false, image, structuredData, title='Pisos, superficies y espacios con carácter',description='Descubre los pisos, materiales y proyectos de Gestión Esencial.'}=Astro.props;
 const s=(await settings());const path=Astro.url.pathname;
+const origin=publicOrigin()||Astro.url.origin;
+const canonical=new URL(canonicalPath||path,origin).href;
+const summary=typeof description==='string'?description.replace(/\s+/g,' ').trim().slice(0,160):'';
+const pageTitle=title+' · Gestión Esencial';
+const preview=new URL(image||'/brand/logo.webp',origin).href;
+const robots=!indexPublicSite()?'noindex, nofollow':noindex?'noindex, follow':undefined;
+const jsonLd=structuredData?JSON.stringify(structuredData).replaceAll('<','\\u003c'):null;
 ---
-<!doctype html><html lang="es-CO"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>{title} · Gestión Esencial</title><meta name="description" content={description}/>{!indexPublicSite()&&<meta name="robots" content="noindex,nofollow"/>}<link rel="icon" href="/brand/symbol.webp"/></head><body data-whatsapp-number={s.whatsapp}>
+<!doctype html><html lang="es-CO"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>{pageTitle}</title><meta name="description" content={summary}/><link rel="canonical" href={canonical}/>
+{robots&&<meta name="robots" content={robots}/>}
+<meta property="og:title" content={pageTitle}/><meta property="og:description" content={summary}/><meta property="og:url" content={canonical}/>
+<meta property="og:image" content={preview}/><meta property="og:type" content="website"/><meta property="og:locale" content="es_CO"/><meta property="og:site_name" content="Gestión Esencial"/>
+<meta name="twitter:card" content="summary_large_image"/>
+{jsonLd&&<script type="application/ld+json" set:html={jsonLd}/>}<link rel="icon" href="/brand/symbol.webp"/></head><body data-whatsapp-number={s.whatsapp}>
 {!production&&<div class="preview-bar"><span>Vista local · Imágenes, proyectos y precios de referencia</span><a href="/admin">Administrar sitio <span aria-hidden="true">↗</span></a></div>}
 <header class="site-header"><a class="brand" href="/" aria-label="Gestión Esencial, inicio"><img src="/brand/logo.webp" alt="Gestión Esencial" width="962" height="451"/></a><button class="menu-toggle" aria-label="Abrir menú" aria-expanded="false" data-menu><Icon name="menu"/></button><nav class="main-nav" aria-label="Principal">{[['/','Inicio'],['/catalogo','Catálogo'],['/proyectos','Proyectos'],['/nosotros','Nosotros'],['/#contacto','Contáctanos']].map(([href,label])=><a class:list={{active:href==='/'?path==='/':path.startsWith(href)}} href={href}>{label}</a>)}</nav><form action="/catalogo" class="header-search"><input name="q" placeholder="¿Qué estás buscando?" aria-label="Buscar productos"/><button aria-label="Buscar"><Icon name="search" size={19}/></button></form></header>
 <main id="contenido"><slot/></main>

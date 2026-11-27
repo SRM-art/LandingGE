@@ -1,8 +1,9 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { all, one, run, transaction } from './db.ts';
-import {derivePassword,passwordScheme,sendMail} from '#runtime';
+import {derivePassword,passwordScheme,production,sendMail} from '#runtime';
 
-export const cookieName = 'ge_account_session';
+export const cookieName = production ? '__Host-ge_account_session' : 'ge_account_session';
+export const cookieOptions = (url: URL) => ({httpOnly:true, sameSite:'strict' as const, secure:production || url.protocol==='https:', path:'/'});
 export const SESSION_MS = 12 * 60 * 60 * 1000;
 export const IDLE_MS = 60 * 60 * 1000;
 export class AuthError extends Error {
@@ -40,12 +41,15 @@ async function passwordMatches(password:unknown,encoded:string|undefined){
 }
 export async function event(action:string,actor:string|null=null,target:string|null=null){(await run('INSERT INTO auth_event VALUES(?,?,?,?,?)',randomUUID(),actor,target,action,now()));}
 export async function limit(key:string,max:number,period:number){
- (await transaction(async ()=>{
-  const t=now();(await run('DELETE FROM auth_limit WHERE expires_at<=?',t));
-  const k=hash(key), row=(await one('SELECT * FROM auth_limit WHERE key=? AND expires_at>?',k,t));
-  if(row && row.count>=max)throw new AuthError('Demasiados intentos. Espera unos minutos antes de volver a intentar.',429);
-  (await run('INSERT INTO auth_limit VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1',k,t+period));
- }));
+ const t=now();
+ // The counter is independent of catalog and session transactions.
+ const row=await one(`INSERT INTO auth_limit(key,count,expires_at) VALUES(?,1,?)
+  ON CONFLICT(key) DO UPDATE SET
+   count=CASE WHEN auth_limit.expires_at<=? THEN 1 ELSE auth_limit.count+1 END,
+   expires_at=CASE WHEN auth_limit.expires_at<=? THEN excluded.expires_at ELSE auth_limit.expires_at END
+  WHERE auth_limit.expires_at<=? OR auth_limit.count<? RETURNING count`,hash(key),t+period,t,t,t,max);
+ if(!row)throw new AuthError('Demasiados intentos. Espera unos minutos antes de volver a intentar.',429);
+ if(row.count===1)await all('DELETE FROM auth_limit WHERE key IN (SELECT key FROM auth_limit WHERE expires_at<=? LIMIT 100) RETURNING key',t);
 }
 function clientLabel(ua:string){
  const browser=/Edg\//.test(ua)?'Edge':/Firefox\//.test(ua)?'Firefox':/Chrome\//.test(ua)?'Chrome':/Safari\//.test(ua)?'Safari':'Navegador';
@@ -84,8 +88,8 @@ export async function setupOwner(email:unknown,password:unknown,ua:string){
   return (await issueSession({id,security_version:1},ua));
  }));
 }
-export async function login(email:unknown,password:unknown,ua:string){
- const address=emailAddress(email),key='login:'+address;
+export async function login(email:unknown,password:unknown,ua:string,origin=''){
+ const address=emailAddress(email),key='login:'+origin+':'+address;
  const attempts=(await one('SELECT count FROM auth_limit WHERE key=? AND expires_at>?',hash(key),now()));
  if(attempts?.count>=5)throw new AuthError('Demasiados intentos. Espera 15 minutos antes de volver a intentar.',429);
  const user=(await one('SELECT u.*,c.password_hash FROM auth_user u LEFT JOIN auth_credential c ON c.user_id=u.id WHERE u.email=?',address));
@@ -162,9 +166,14 @@ export async function completePassword(token:string,purpose:'invite'|'reset',pas
 }
 export async function reauthenticate(actor:Identity,password:unknown){
  (await requireActor(actor));const cred=(await one('SELECT password_hash FROM auth_credential WHERE user_id=?',actor.id));
- (await limit('reauth:'+actor.id,5,15*60000));
+ const key='reauth:'+actor.sessionId;
+ await limit(key,5,15*60000);
  if(!await passwordMatches(password,cred?.password_hash))throw new AuthError('La contraseña no es correcta.',401);
- (await transaction(async ()=>{(await requireActor(actor));(await run('UPDATE auth_session SET reauthenticated_at=? WHERE id=?',now(),actor.sessionId));}));
+ await transaction(async ()=>{
+  await requireActor(actor);
+  await run('UPDATE auth_session SET reauthenticated_at=? WHERE id=?',now(),actor.sessionId);
+  await run('DELETE FROM auth_limit WHERE key=?',hash(key));
+ });
 }
 export async function users(actor:Identity){
  (await requireActor(actor,true));const t=now();
