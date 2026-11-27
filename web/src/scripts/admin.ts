@@ -27,12 +27,20 @@ function bindForm(selector:string,getPayload:(f:FormData,form:HTMLFormElement)=>
  if(!form)return;
  const button=form.querySelector<HTMLButtonElement>('[data-save]')!;
  const status=form.querySelector<HTMLElement>('[data-form-status]')!;
+ const cancel=form.querySelector<HTMLAnchorElement>('[data-cancel]');
+ const contentCancel=action==='content' ? cancel : null;
+ const readPayload=()=>getPayload(new FormData(form),form);
+ const snapshot=(payload:unknown)=>JSON.stringify(payload,(key,value)=>key==='revision'?undefined:value);
+ let savedContent=contentCancel ? snapshot(readPayload()) : undefined;
  let dirty=false;
- form.addEventListener('input',()=>dirty=true);
+ const updateDirty=()=>{
+  dirty=contentCancel ? snapshot(readPayload())!==savedContent : true;
+  if(contentCancel)contentCancel.hidden=!dirty;
+ };
+ form.addEventListener('input',updateDirty);
  window.addEventListener('beforeunload',event=>{
   if(dirty)event.preventDefault();
  });
- const cancel=form.querySelector<HTMLAnchorElement>('[data-cancel]');
  cancel?.addEventListener('click',event=>{
   if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
   event.preventDefault();
@@ -54,11 +62,14 @@ function bindForm(selector:string,getPayload:(f:FormData,form:HTMLFormElement)=>
   status.classList.remove('error');
   status.textContent='Guardando…';
   try{
-   const result=await api(action,getPayload(new FormData(form),form));
+   const payload=readPayload();
+   const result=await api(action,payload);
    dirty=false;
    status.textContent='Cambios guardados.';
    if(action==='content'){
     form.dataset.revision=String(Number(form.dataset.revision)+1);
+    savedContent=snapshot(payload);
+    updateDirty();
     toast('Contenido actualizado.');
    }else if(action==='city'){location.reload();}
    else if(action==='category'){location.href='/admin/categorias?saved=1&rama='+result.id;}
