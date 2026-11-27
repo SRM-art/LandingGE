@@ -17,11 +17,59 @@ function toast(message:string){const el=document.getElementById('toast')!;el.tex
 document.querySelector('[data-logout]')?.addEventListener('click',async()=>{try{await api('logout',{});location.href='/admin/login';}catch(e){toast((e as Error).message);}});
 document.querySelectorAll<HTMLButtonElement>('[data-state]').forEach(b=>b.addEventListener('click',async()=>{const restore=b.dataset.state==='restore';if(!confirm(restore?'¿Restaurar este registro como borrador? Podrás revisarlo antes de publicarlo.':'¿Ocultar este registro del sitio? Se conservarán la información, las imágenes y las relaciones.'))return;b.disabled=true;try{await api('state',{kind:b.dataset.kind,id:b.dataset.id,action:b.dataset.state});location.reload();}catch(e){toast((e as Error).message);b.disabled=false;}}));
 document.querySelectorAll<HTMLElement>('[data-image-editor]').forEach(root=>{const field=root.dataset.field!;const images:Img[]=JSON.parse(root.dataset.images||'[]');galleries.set(field,images);const list=root.querySelector<HTMLElement>('[data-image-list]')!;const input=root.querySelector<HTMLInputElement>('[data-upload]')!;const status=root.querySelector<HTMLElement>('[data-upload-status]')!;const single=root.dataset.single==='true';
- const render=()=>{list.replaceChildren();images.forEach((im,index)=>{const card=document.createElement('div');card.className='image-edit-card';const img=document.createElement('img');img.src='/media/'+im.id+'/480';img.alt=im.alt||'Imagen cargada';card.append(img);const text=document.createElement('input');text.placeholder='Descripción de la imagen';text.ariaLabel='Descripción de la imagen '+(index+1);text.value=im.alt;text.maxLength=200;text.addEventListener('input',()=>im.alt=text.value);if(!single)card.append(text);const controls=document.createElement('div');controls.className='image-controls';const label=document.createElement('span');label.textContent=single?'Imagen seleccionada':index===0?'Portada':'Imagen '+(index+1);controls.append(label);const button=(label:string,fn:()=>void,disabled=false)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=disabled;b.addEventListener('click',fn);controls.append(b);};if(!single){button('↑',()=>{[images[index-1],images[index]]=[images[index],images[index-1]];render();},index===0);button('↓',()=>{[images[index+1],images[index]]=[images[index],images[index+1]];render();},index===images.length-1);}button('Quitar',()=>{images.splice(index,1);root.dispatchEvent(new Event('input',{bubbles:true}));render();});card.append(controls);list.append(card);});};render();
- input.addEventListener('change',async()=>{const files=Array.from(input.files||[]);input.disabled=true;document.querySelectorAll<HTMLButtonElement>('[data-save]').forEach(b=>b.disabled=true);try{for(const file of files){if(!single&&images.length>=20)throw new Error('La galería admite hasta 20 imágenes.');if(file.size>10*1024*1024)throw new Error(file.name+' excede los 10 MB.');status.textContent='Cargando '+file.name+'…';const body=new FormData();body.append('file',file);const r=await fetch('/admin/api/upload',{method:'POST',headers:{'x-ge-admin':'1'},body});const result=await r.json();if(!r.ok)throw new Error(result.error||'No se pudo cargar la imagen.');if(single)images.splice(0,images.length);images.push({id:result.id,alt:file.name.replace(/\.[^.]+$/,'')});render();}status.textContent='Imagen cargada. Guarda el formulario para aplicar el cambio.';}catch(e){status.textContent=(e as Error).message;}finally{input.disabled=false;input.value='';document.querySelectorAll<HTMLButtonElement>('[data-save]').forEach(b=>b.disabled=false);}});
+ const markChanged=()=>root.dispatchEvent(new Event('input',{bubbles:true}));
+ const render=()=>{list.replaceChildren();images.forEach((im,index)=>{const card=document.createElement('div');card.className='image-edit-card';const img=document.createElement('img');img.src='/media/'+im.id+'/480';img.alt=im.alt||'Imagen cargada';card.append(img);const text=document.createElement('input');text.placeholder='Descripción de la imagen';text.ariaLabel='Descripción de la imagen '+(index+1);text.value=im.alt;text.maxLength=200;text.addEventListener('input',()=>im.alt=text.value);if(!single)card.append(text);const controls=document.createElement('div');controls.className='image-controls';const label=document.createElement('span');label.textContent=single?'Imagen seleccionada':index===0?'Portada':'Imagen '+(index+1);controls.append(label);const button=(label:string,fn:()=>void,disabled=false)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=disabled;b.addEventListener('click',fn);controls.append(b);};if(!single){button('↑',()=>{[images[index-1],images[index]]=[images[index],images[index-1]];markChanged();render();},index===0);button('↓',()=>{[images[index+1],images[index]]=[images[index],images[index+1]];markChanged();render();},index===images.length-1);}button('Quitar',()=>{images.splice(index,1);markChanged();render();});card.append(controls);list.append(card);});};render();
+ input.addEventListener('change',async()=>{const files=Array.from(input.files||[]);input.disabled=true;document.querySelectorAll<HTMLButtonElement>('[data-save]').forEach(b=>b.disabled=true);try{for(const file of files){if(!single&&images.length>=20)throw new Error('La galería admite hasta 20 imágenes.');if(file.size>10*1024*1024)throw new Error(file.name+' excede los 10 MB.');status.textContent='Cargando '+file.name+'…';const body=new FormData();body.append('file',file);const r=await fetch('/admin/api/upload',{method:'POST',headers:{'x-ge-admin':'1'},body});const result=await r.json();if(!r.ok)throw new Error(result.error||'No se pudo cargar la imagen.');if(single)images.splice(0,images.length);images.push({id:result.id,alt:file.name.replace(/\.[^.]+$/,'')});markChanged();render();}status.textContent='Imagen cargada. Guarda el formulario para aplicar el cambio.';}catch(e){status.textContent=(e as Error).message;}finally{input.disabled=false;input.value='';document.querySelectorAll<HTMLButtonElement>('[data-save]').forEach(b=>b.disabled=false);}});
 });
 function val(f:FormData,name:string){return String(f.get(name)||'').trim();}
-function bindForm(selector:string,getPayload:(f:FormData,form:HTMLFormElement)=>unknown,action:string){const form=document.querySelector<HTMLFormElement>(selector);if(!form)return;let dirty=false;form.addEventListener('input',()=>dirty=true);window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();}});form.addEventListener('submit',async e=>{e.preventDefault();const button=form.querySelector<HTMLButtonElement>('[data-save]')!;const status=form.querySelector<HTMLElement>('[data-form-status]')!;button.disabled=true;status.classList.remove('error');status.textContent='Guardando…';try{const result=await api(action,getPayload(new FormData(form),form));dirty=false;status.textContent='Cambios guardados.';if(action==='content'){form.dataset.revision=String(Number(form.dataset.revision)+1);toast('Contenido actualizado.');}else if(action==='city'){location.reload();}else if(action==='category'){location.href='/admin/categorias?saved=1&rama='+result.id;}else if(action==='slide'){location.href='/admin/contenidos?saved=1#diapositivas-adicionales';}else{location.href='/admin/'+(action==='product'?'productos':'proyectos')+'/'+result.id+'?saved=1';}}catch(e){status.classList.add('error');status.textContent=(e as Error).message;}finally{button.disabled=false;}});}
+function bindForm(selector:string,getPayload:(f:FormData,form:HTMLFormElement)=>unknown,action:string){
+ const form=document.querySelector<HTMLFormElement>(selector);
+ if(!form)return;
+ const button=form.querySelector<HTMLButtonElement>('[data-save]')!;
+ const status=form.querySelector<HTMLElement>('[data-form-status]')!;
+ let dirty=false;
+ form.addEventListener('input',()=>dirty=true);
+ window.addEventListener('beforeunload',event=>{
+  if(dirty)event.preventDefault();
+ });
+ const cancel=form.querySelector<HTMLAnchorElement>('[data-cancel]');
+ cancel?.addEventListener('click',event=>{
+  if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+  event.preventDefault();
+  if(button.disabled || (dirty && !confirm('¿Descartar los cambios sin guardar?')))return;
+  dirty=false;
+  if(action==='content')location.reload();
+  else location.assign(cancel.href);
+ });
+ form.addEventListener('reset',event=>{
+  if(button.disabled){event.preventDefault();return;}
+  dirty=false;
+  status.textContent='';
+  status.classList.remove('error');
+ });
+ form.addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(button.disabled)return;
+  button.disabled=true;
+  status.classList.remove('error');
+  status.textContent='Guardando…';
+  try{
+   const result=await api(action,getPayload(new FormData(form),form));
+   dirty=false;
+   status.textContent='Cambios guardados.';
+   if(action==='content'){
+    form.dataset.revision=String(Number(form.dataset.revision)+1);
+    toast('Contenido actualizado.');
+   }else if(action==='city'){location.reload();}
+   else if(action==='category'){location.href='/admin/categorias?saved=1&rama='+result.id;}
+   else if(action==='slide'){location.href='/admin/contenidos?saved=1#diapositivas-adicionales';}
+   else{location.href='/admin/'+(action==='product'?'productos':'proyectos')+'/'+result.id+'?saved=1';}
+  }catch(error){
+   status.classList.add('error');
+   status.textContent=(error as Error).message;
+  }finally{button.disabled=false;}
+ });
+}
 bindForm('[data-city-form]', fields => ({action:'create', name:val(fields,'name')}), 'city');
 bindForm('[data-category-form]', (fields, form) => {
  const parent = val(fields,'parent_id');

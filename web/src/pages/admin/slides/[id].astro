@@ -2,6 +2,7 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import ImageEditor from '../../../components/ImageEditor.astro';
 import CarouselTextField from '../../../components/CarouselTextField.astro';
+import CarouselImageHint from '../../../components/CarouselImageHint.astro';
 import {one} from '../../../server/db';
 import {countAdditionalSlides} from '../../../server/slides';
 import {additionalSlideLimit} from '../../../domain/carousel';
@@ -20,9 +21,9 @@ if(!isNew&&!p)return Astro.redirect('/admin/contenidos#diapositivas-adicionales'
    <CarouselTextField field="description" name="description" value={p?.description||''}/>
    <p class="hint">Usa textos breves para conservar la composición en móvil y escritorio.</p>
   </section><section class="panel"><h2>Imagen de fondo</h2>
-   <p class="hint"><strong>Tamaño recomendado: 1600 × 900 px (16:9).</strong> Usa una foto horizontal, mantén lo importante cerca del centro y deja espacio a la izquierda para el texto. La imagen se recorta según la pantalla.</p>
+   <CarouselImageHint/>
    <ImageEditor images={p?[{id:p.media_id}]:[]} field="custom_slide_image" single/>
   </section></div>
-  <aside class="editor-aside"><section class="panel"><h2>Publicación</h2><label class="check-label"><input type="checkbox" name="active" checked={p?!p.deleted_at&&!!p.active:true} disabled={!!p?.deleted_at}/>Mostrar en el carrusel</label><p class="hint">Las diapositivas nuevas aparecen después de las tres base.</p><div class="price-preview">Botón automático: <strong>Explorar el catálogo →</strong></div><p class="hint">La tipografía, la ubicación y el tamaño se mantienen según el diseño.</p><button class="button primary full" data-save>Guardar diapositiva</button><p class="form-status" data-form-status role="status"></p></section></aside></div>
+  <aside class="editor-aside"><section class="panel"><h2>Publicación</h2><label class="check-label"><input type="checkbox" name="active" checked={p?!p.deleted_at&&!!p.active:true} disabled={!!p?.deleted_at}/>Mostrar en el carrusel</label><p class="hint">Las diapositivas nuevas aparecen después de las tres base.</p><div class="price-preview">Botón automático: <strong>Explorar el catálogo →</strong></div><p class="hint">La tipografía, la ubicación y el tamaño se mantienen según el diseño.</p><div class="form-actions"><button class="button primary" type="submit" data-save>Guardar diapositiva</button><a class="button outline" href="/admin/contenidos#diapositivas-adicionales" data-cancel>Cancelar</a></div><p class="form-status" data-form-status role="status"></p></section></aside></div>
  </form>
 </AdminLayout>

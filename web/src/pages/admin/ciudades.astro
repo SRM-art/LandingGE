@@ -14,7 +14,7 @@ const cities = (await all(`SELECT c.id, c.name, c.deleted_at, COUNT(p.id) AS pro
     <h2>Agregar ciudad</h2>
     <form data-city-form>
       <label>Nombre de la ciudad<input name="name" required maxlength="100" placeholder="Ej. Envigado"/></label>
-      <button class="button primary" type="submit" data-save>Agregar ciudad</button>
+      <div class="form-actions"><button class="button primary" type="submit" data-save>Agregar ciudad</button><button class="button outline" type="reset">Cancelar</button></div>
       <p class="form-status" data-form-status role="status"></p>
     </form>
   </section>

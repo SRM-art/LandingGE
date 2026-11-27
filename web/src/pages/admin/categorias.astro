@@ -49,7 +49,7 @@ const parents = editing ? active.filter(row => {
           <label>Orden en su nivel<input type="number" name="position" min="0" max="9999" required value={editing.position}/></label>
         </div>
       </details> : <><input type="hidden" name="parent_id" value={parent?.id ?? ''}/><input type="hidden" name="position" value="0"/></>}
-      <div class="actions"><button class="button primary" type="submit" data-save>{editing ? 'Guardar cambios' : 'Agregar'}</button><a href="/admin/categorias" class="button outline">Cancelar</a></div>
+      <div class="actions"><button class="button primary" type="submit" data-save>{editing ? 'Guardar cambios' : 'Agregar'}</button><a class="button outline" href="/admin/categorias" data-cancel>Cancelar</a></div>
       <p class="form-status" data-form-status role="status"></p>
     </form>
   </section>}
