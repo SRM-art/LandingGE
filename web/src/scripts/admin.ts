@@ -28,14 +28,14 @@ function bindForm(selector:string,getPayload:(f:FormData,form:HTMLFormElement)=>
  const button=form.querySelector<HTMLButtonElement>('[data-save]')!;
  const status=form.querySelector<HTMLElement>('[data-form-status]')!;
  const cancel=form.querySelector<HTMLAnchorElement>('[data-cancel]');
- const contentCancel=action==='content' ? cancel : null;
+ const contentActions=form.querySelector<HTMLElement>('[data-content-actions]');
  const readPayload=()=>getPayload(new FormData(form),form);
  const snapshot=(payload:unknown)=>JSON.stringify(payload,(key,value)=>key==='revision'?undefined:value);
- let savedContent=contentCancel ? snapshot(readPayload()) : undefined;
+ let savedContent=contentActions ? snapshot(readPayload()) : undefined;
  let dirty=false;
  const updateDirty=()=>{
-  dirty=contentCancel ? snapshot(readPayload())!==savedContent : true;
-  if(contentCancel)contentCancel.hidden=!dirty;
+  dirty=contentActions ? snapshot(readPayload())!==savedContent : true;
+  if(contentActions)contentActions.hidden=!dirty;
  };
  form.addEventListener('input',updateDirty);
  window.addEventListener('beforeunload',event=>{
@@ -57,7 +57,7 @@ function bindForm(selector:string,getPayload:(f:FormData,form:HTMLFormElement)=>
  });
  form.addEventListener('submit',async event=>{
   event.preventDefault();
-  if(button.disabled)return;
+  if(button.disabled || (contentActions && !dirty))return;
   button.disabled=true;
   status.classList.remove('error');
   status.textContent='Guardando…';

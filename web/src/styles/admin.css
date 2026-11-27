@@ -19,6 +19,6 @@
 .content-save {
   flex-wrap: wrap;
 }
-.content-save [data-cancel][hidden] {
+.content-save[hidden] {
   display: none;
 }
